@@ -4820,3 +4820,5 @@ svg g[role="button"]:focus-visible > rect {
   text-transform: none;
   letter-spacing: normal;
 }
+
+.turn-order .prepared-summary { display: block; white-space: normal; font-size: 0.72rem; line-height: 1.35; }

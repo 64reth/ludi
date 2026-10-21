@@ -3,7 +3,7 @@ import { HelpTip } from "./HelpTip";
 import { useWarFeedback } from "./useWarFeedback";
 import { useWarSelection } from "./useWarSelection";
 import { windowReason, unavailable } from "../../../packages/war/guidance";
-import { skills, type Skill } from "../../../packages/war/index";
+import { skills, skillIcons, type Skill } from "../../../packages/war/index";
 import { WarPanel } from "./WarPanel";
 import type { SkillAction } from "../../../packages/war/index";
 import {
@@ -129,6 +129,10 @@ export function GameTable({
     }
   }, [introRequest]);
   useEffect(() => {
+    if (submitted?.startsWith("purchase:") && game.war?.prepared?.[currentPlayer(game).id]) {
+      setSubmitted(undefined);
+      flow.reset();
+    }
     if (submitted && game.war?.lastSkill?.revision === game.revision) {
       setSubmitted(undefined);
       setWarOpen(false);
@@ -275,6 +279,7 @@ export function GameTable({
                 <span title={r.name}>
                   {r.name}
                   {r.forfeited ? " · Left" : ""}
+                  {display.war && <small className="prepared-summary">{display.war.prepared?.[r.id] ? `${skillIcons[display.war.prepared[r.id]]} ${skills[display.war.prepared[r.id]].name} ready` : "No skill prepared"}</small>}
                 </span>
                 <small>{r.pieces.filter((v) => v === 56).length}/4</small>
               </div>
@@ -318,8 +323,7 @@ export function GameTable({
                       : "Skill window closed"}
                   </strong>
                   <HelpTip label="bank and skill window">
-                    Both dice earn points, capped at 12; overflow is lost. One
-                    purchased skill before the first roll of your normal turn.
+                    Earn half the dice total, rounded up, capped at 12; overflow is lost. Buy one skill to hold or deploy before your first roll.
                     Bonus rolls do not reopen this window. Unspent points
                     persist.
                   </HelpTip>
@@ -327,7 +331,7 @@ export function GameTable({
                 {canAct && display.war.window ? (
                   <>
                     <p className="pre-roll-prompt">
-                      Use a skill or roll your dice.
+                      Prepare, deploy, or roll. Holding a skill is always allowed.
                     </p>
                     <button
                       className="primary use-skill"
@@ -336,7 +340,7 @@ export function GameTable({
                         setHelp(undefined);
                       }}
                     >
-                      Use Skill
+                      {display.war.prepared?.[p.id] ? "Deploy Prepared Skill" : "Prepare Skill"}
                     </button>
                     {!Object.keys(skills).some(
                       (s) => !unavailable(game, s as Skill),
@@ -344,7 +348,7 @@ export function GameTable({
                       <p className="skill-no-options">
                         {display.war.bank[p.id] < 3
                           ? "Not enough points yet. Roll to build your bank; first skills start at 3."
-                          : "No affordable skill has a legal target. You can roll normally."}
+                          : "No skill available now. You can hold your prepared skill and roll normally."}
                       </p>
                     )}
                   </>

@@ -4,9 +4,9 @@ War is an explicit mode in the existing Play screen. Local, Solo, mixed local ta
 
 ## Bank and normal turns
 
-Each player starts with zero, earns both dice faces on every valid roll (including bonuses), and keeps up to 12 power. Overflow is discarded. Purchases validate the complete current action before charging. Costs are per player and per skill type: base 3/6/9/12, then +3 per purchase, capped at 12. Fast Forward and Draw Back share a purchase count. There is no inventory.
+Each player starts with zero, earns `Math.ceil((die1 + die2) * 0.5)` points on every valid roll (including bonuses), and keeps up to 12 power. Overflow is discarded. Purchases validate the complete current action before charging. Costs are per player and per skill type: base 3/6/9/12, then +3 per purchase, capped at 12. Fast Forward and Draw Back share a purchase count. Each player has one public prepared-skill slot. Purchase charges immediately without requiring targets; deployment validates current targets, costs no additional points and empties the slot. Skills persist across rounds until deployed.
 
-A normal turn is the whole sequence of rolls, dice moves and bonus rolls. The skill window opens once at its beginning and closes on a purchase or the first roll. `completed` records normal-turn owners; the round advances after all non-forfeited players have completed their turn. Timeouts count as a completed normal turn. Expired disconnects forfeit as before; transient reconnects preserve all War state. Skipping a skill simply means rolling. Rematches reset banks, effects, purchases and round state.
+A normal turn is the whole sequence of rolls, dice moves and bonus rolls. The skill window opens once at its beginning and closes on deployment or the first roll. `completed` records normal-turn owners; the round advances after all non-forfeited players have completed their turn. Timeouts count as a completed normal turn. Expired disconnects forfeit as before; transient reconnects preserve all War state. Skipping a skill simply means rolling. Rematches reset banks, effects, purchases and round state.
 
 ## Deterministic skill interpretations
 
@@ -24,7 +24,7 @@ Hazards use a deterministic two-cell schedule, independent of dice and client cl
 
 `»` Slipstream advances a landing counter up to two further legal spaces, trying two then one. It cannot force an invalid landing or a Heaven finish. `≈` Quicksand marks the next dice movement with a temporary penalty. `!` Danger Tile marks the actual landing counter as exposed to ordinary captures while it occupies the tile, without removing a purchased shield. Purchased attacks still obey their explicit protected-territory exclusions. Rotation or departure clears Danger exposure. Swap landings resolve hazards for either exchanged counter. Slipstream also carries an intact legal doubles block; hazard movement does not chain recursively. Optional house-rule safe stars may host hazards, while structural gates remain excluded; Danger can remove ordinary safe-star capture protection after an actual landing.
 
-Solid symbols are active; dashed symbols are incoming. The skill panel gives battlefield details. Shields use a diamond; slows show a minus value. Purchases preview source and targets on the board and require confirmation, with cancellation spending nothing. Restrained skill-specific rings, contextual messages and accessible announcements remain understandable with mute and reduced motion.
+Solid symbols are active; dashed symbols are incoming. The skill panel gives battlefield details. Shields use a diamond; slows show a minus value. Deployments preview source and targets on the board and require confirmation, with cancellation spending nothing. Restrained skill-specific rings, contextual messages and accessible announcements remain understandable with mute and reduced motion.
 
 ## Runtime and authority
 
@@ -32,10 +32,14 @@ Solid symbols are active; dashed symbols are incoming. The skill panel gives bat
 
 ## Learning and interacting (Build 003A / 003B)
 
-At an eligible human turn, the command area presents **Use Skill** beside the ordinary **Roll dice** action. Rolling is always optional instead of buying; it closes the skill window, including on bonus throws. The bank control and skill cards explain whether the problem is points, timing, existing effects or legal targets. A full bank after rolling is not a new skill opportunity.
+At an eligible human turn, the command area presents **Prepare Skill** or **Deploy Prepared Skill** beside the ordinary **Roll dice** action. Rolling is always optional instead of buying; it closes the skill window, including on bonus throws. The bank control and skill cards explain whether the problem is points, timing, existing effects or legal targets. A full bank after rolling is not a new skill opportunity.
 
-Use Skill guides each necessary selection. Choose a counter on the board or use its labelled button, preview the exact effect and bank deduction, then confirm. Cancel spends nothing, Back changes a selection, and Heaven Lock skips counter targeting entirely. The panel waits for table validation before closing. Skill and help drawers occupy the command area, keeping board cells available for targeting.
+Use Skill guides each necessary selection. Choose a counter on the board or use its labelled button, preview the exact deployment effect, then confirm. Cancel spends nothing, Back changes a selection, and Heaven Lock skips counter targeting entirely. The panel waits for table validation before closing. Skill and help drawers occupy the command area, keeping board cells available for targeting.
 
 **Battlefield Key** explains actual starting arrows, counter numbers and rings, optional safe markings, Heaven, hazards, shields and slows. Board symbols support keyboard focus and touch explanations. Question-mark controls explain the bank cap, prices, escalation and legal skill reach. A three-step introduction appears once per device, can be skipped, and can be replayed from **Pause / menu → Replay War introduction**.
 
 **Match Events** reviews recent significant authoritative events. Selected targets rejected locally are marked as selection guidance; server messages are quoted as table messages. The HUD queues one readable notification at a time without delaying normal controls, and shows the originating round so earlier events are not mistaken for current battlefield state. Hover or keyboard interaction holds its dismissal timer; significant information remains in history after dismissal. Sound and motion are not required to understand any of these messages.
+
+## Build 003C preparation
+
+One purchase per preparation window, only into an empty slot. Purchase and deployment are separate authoritative engine operations. Purchasing leaves the window open to hold or deploy; deployment closes it, preventing a repeat purchase. Rolling always closes the window, including bonus rolls. Opponents’ prepared names and icons appear in the player summaries. Existing saved version-one games without the new optional fields start with empty slots.

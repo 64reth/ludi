@@ -2,6 +2,7 @@ import { cellId, currentPlayer, type Game } from "../game-engine/index";
 import { gates } from "../board/geometry";
 import {
   cost,
+  purchaseReason,
   effect,
   legalSkills,
   skills,
@@ -14,7 +15,7 @@ export const sameRef = (a: Ref | undefined, b: Ref | undefined) =>
 export function windowReason(g: Game) {
   if (!g.war) return "";
   return g.war.window
-    ? "Use a skill or roll your dice."
+    ? "Prepare or deploy a skill, or roll your dice. Prepared skills can be held for later turns."
     : g.war.lastSkill?.turn === g.turn
       ? "Skill used this normal turn. Your next opportunity follows the full table rotation."
       : "Rolling closed the skill window. Bonus rolls keep it closed; wait for your next normal turn.";
@@ -23,7 +24,9 @@ export function unavailable(g: Game, s: Skill) {
   const w = g.war!,
     p = currentPlayer(g);
   if (!w.window) return windowReason(g);
-  const c = cost(g, s);
+  if (!w.prepared?.[p.id]) return purchaseReason(g, s);
+  if (w.prepared[p.id] !== s) return "Another skill occupies your prepared slot.";
+  const c = 0;
   if (w.bank[p.id] < c)
     return `Need ${c - w.bank[p.id]} more points (${c} required).`;
   if (s === "lock" && w.lock)

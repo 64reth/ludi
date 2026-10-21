@@ -47,6 +47,8 @@ export type Hazard = { cell: number; kind: "slip" | "sand" | "danger" };
 export type War = {
   version: 1;
   round: number;
+  prepared?: Record<string, Skill>;
+  purchasedThisWindow?: boolean;
   completed: string[];
   window: boolean;
   bank: Record<string, number>;
@@ -82,6 +84,8 @@ export function createWar(g: Game): War {
   return {
     version: 1,
     round: 1,
+    prepared: {},
+    purchasedThisWindow: false,
     completed: [],
     window: true,
     bank: Object.fromEntries(g.players.map((p) => [p.id, 0])),
@@ -153,6 +157,7 @@ export function warTurn(g: Game, ended: string) {
   }
   const id = currentPlayer(g).id;
   w.window = true;
+  w.purchasedThisWindow = false;
   for (const e of w.effects.filter((e) => e.owner === id && e.shield))
     recordEvent(
       g,
@@ -177,7 +182,7 @@ export function warTurn(g: Game, ended: string) {
   recordEvent(
     g,
     "war",
-    `${playerLabel(g, id)}: skill window open · bank ${w.bank[id]}/12. Use one skill or roll; bonus rolls never reopen it.`,
+    `${playerLabel(g, id)}: skill window open · bank ${w.bank[id]}/12. Prepare or deploy one skill, or roll; bonus rolls never reopen it.`,
     "war",
     "window",
   );
@@ -187,8 +192,9 @@ export function warRoll(g: Game, dice: [number, number]) {
   if (!w) return;
   const id = currentPlayer(g).id,
     sum = dice[0] + dice[1],
-    gain = Math.min(12 - w.bank[id], sum),
-    overflow = sum - gain;
+    earned = Math.ceil(sum * 0.5),
+    gain = Math.min(12 - w.bank[id], earned),
+    overflow = earned - gain;
   w.bank[id] += gain;
   if (w.window)
     recordEvent(
@@ -254,7 +260,7 @@ function exposed(g: Game, r: Ref) {
       ).length === 1
   );
 }
-export function legalSkills(g: Game): SkillAction[] {
+export function skillTargets(g: Game): SkillAction[] {
   const w = g.war;
   if (!w || !w.window || g.phase !== "roll" || currentPlayer(g).forfeited)
     return [];
@@ -268,8 +274,10 @@ export function legalSkills(g: Game): SkillAction[] {
     to?: number,
     mode?: "forward" | "back",
   ) => {
-    const c = cost(g, skill);
-    if (w.bank[p.id] < c) return;
+    const held = w.prepared?.[p.id];
+    if (held && held !== skill) return;
+    const c = held ? 0 : cost(g, skill);
+    if (!held && w.bank[p.id] < c) return;
     out.push({
       id: `${g.match}:${g.revision}:skill:${out.length}`,
       skill,
@@ -353,6 +361,34 @@ export function legalSkills(g: Game): SkillAction[] {
     );
   return out;
 }
+export function legalSkills(g: Game): SkillAction[] {
+  if (!g.war?.prepared?.[currentPlayer(g).id]) return [];
+  return skillTargets(g);
+}
+export function purchaseReason(g: Game, skill: Skill): string {
+  const w = g.war, p = currentPlayer(g);
+  if (!w || !w.window || g.phase !== "roll" || p.forfeited) return "Wait for your next preparation window.";
+  if (w.prepared?.[p.id]) return "Your prepared slot is occupied.";
+  if (w.purchasedThisWindow) return "You already purchased in this preparation window.";
+  if (!Object.hasOwn(skills, skill)) return "Unknown skill.";
+  const price = cost(g, skill);
+  return w.bank[p.id] < price ? `Need ${price - w.bank[p.id]} more points (${price} required).` : "";
+}
+export function purchaseSkill(g: Game, actor: string, skill: Skill): Game {
+  if (currentPlayer(g).id !== actor) throw Error("Wait for your preparation window.");
+  const reason = purchaseReason(g, skill);
+  if (reason) throw Error(reason);
+  const n = structuredClone(g), w = n.war!, price = cost(g, skill);
+  w.bank[actor] -= price;
+  w.purchases[actor][skill] = (w.purchases[actor][skill] || 0) + 1;
+  (w.prepared ??= {})[actor] = skill;
+  w.purchasedThisWindow = true;
+  n.revision++;
+  w.feedback = `${playerLabel(n, actor)} prepared ${skills[skill].name}. Spent ${price} · bank ${w.bank[actor]}/12. Hold it or deploy before rolling.`;
+  recordEvent(n, "war", w.feedback, "war", "skill");
+  return n;
+}
+export const skillIcons: Record<Skill, string> = { guard: "◇", tempo: "↔", switch: "⇄", long: "⚔", double: "⚔⚔", lock: "▣" };
 function swapLegal(g: Game, a: Ref, b: Ref) {
   const p = g.players.find((p) => p.id === a.owner)!,
     q = g.players.find((p) => p.id === b.owner)!;
@@ -362,6 +398,7 @@ function swapLegal(g: Game, a: Ref, b: Ref) {
   );
 }
 export function useSkill(g: Game, actor: string, id: string): Game {
+  if (id.startsWith("purchase:")) return purchaseSkill(g, actor, id.slice(9) as Skill);
   if (currentPlayer(g).id !== actor || g.phase === "finished")
     throw Error("Wait for your skill window.");
   const a = legalSkills(g).find((a) => a.id === id);
@@ -369,8 +406,7 @@ export function useSkill(g: Game, actor: string, id: string): Game {
   const n = structuredClone(g),
     w = n.war!,
     p = currentPlayer(n);
-  w.bank[p.id] -= a.cost;
-  w.purchases[p.id][a.skill] = (w.purchases[p.id][a.skill] || 0) + 1;
+  delete w.prepared![p.id];
   w.window = false;
   n.revision++;
   const previousFeedback = w.feedback;
@@ -454,7 +490,7 @@ export function useSkill(g: Game, actor: string, id: string): Game {
             : a.mode === "back"
               ? `${counterLabel(n, a.targets[0].owner, a.targets[0].piece)}: next eligible movement up to 3 shorter unless a shield absorbed it; at least 1 space remains.`
               : `${counterLabel(n, a.source!.owner, a.source!.piece)} advanced along its legal route.`;
-  w.feedback = `${playerLabel(n, p.id)} used ${skills[a.skill].name}: ${a.label}. ${detail}${w.feedback !== previousFeedback ? ` ${w.feedback}` : ""} Spent ${a.cost} · bank ${w.bank[p.id]}/12.`;
+  w.feedback = `${playerLabel(n, p.id)} used ${skills[a.skill].name}: ${a.label}. ${detail}${w.feedback !== previousFeedback ? ` ${w.feedback}` : ""} Prepared slot cleared · bank ${w.bank[p.id]}/12.`;
   recordEvent(
     n,
     "war",
@@ -553,7 +589,7 @@ export function hazardName(k: Hazard["kind"]) {
 export function chooseSkill(g: Game): SkillAction | undefined {
   if (!g.war) return;
   const p = currentPlayer(g),
-    actions = legalSkills(g);
+    actions = g.war.prepared?.[p.id] ? legalSkills(g) : g.war.purchasedThisWindow ? [] : skillTargets(g);
   const ranked = actions
     .map((a) => ({
       a,
@@ -581,6 +617,6 @@ export function chooseSkill(g: Game): SkillAction | undefined {
   const best = ranked[0];
   return best &&
     (best.score >= 100 || (g.war.bank[p.id] >= 10 && best.score > 0))
-    ? best.a
+    ? g.war.prepared?.[p.id] ? best.a : { ...best.a, id: `purchase:${best.a.skill}` }
     : undefined;
 }

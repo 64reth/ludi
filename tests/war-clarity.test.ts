@@ -14,7 +14,7 @@ import {
   timeoutGame,
   type Game,
 } from "../packages/game-engine/index";
-import { useSkill, legalSkills } from "../packages/war/index";
+import { useSkill, legalSkills, purchaseSkill } from "../packages/war/index";
 import {
   unavailable,
   windowReason,
@@ -144,6 +144,7 @@ test("Authority supplies bank, window, bonus, rotation, hazard and lock explanat
   assert.equal(g.war!.round, 2);
   assert.ok(g.events.some((e) => /now active/.test(e.text)));
   g.war!.bank.a = 12;
+  g = purchaseSkill(g, "a", "lock");
   g = useSkill(g, "a", legalSkills(g).find((a) => a.skill === "lock")!.id);
   assert.ok(g.events.some((e) => e.topic === "lock" && e.tone === "critical"));
   g = timeoutGame(timeoutGame(g));
@@ -160,6 +161,7 @@ test("Skill unavailability explains money, used turns, rolled windows, protected
   assert.match(unavailable(g, "guard"), /Need 3 more/);
   g.players[0].pieces[0] = 10;
   g.war!.bank.a = 12;
+  g = purchaseSkill(g, "a", "guard");
   g = useSkill(g, "a", legalSkills(g).find((a) => a.skill === "guard")!.id);
   assert.match(windowReason(g), /Skill used/);
   g = timeoutGame(timeoutGame(g));

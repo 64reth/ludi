@@ -15,6 +15,8 @@ import {
 import { preset } from "../packages/rules/index";
 import {
   legalSkills,
+  skillTargets,
+  purchaseSkill,
   useSkill,
   cost,
   chooseSkill,
@@ -51,22 +53,23 @@ function buy(
   s: Skill,
   predicate = (a: ReturnType<typeof legalSkills>[number]) => true,
 ) {
+  g = purchaseSkill(g, currentPlayer(g).id, s);
   const a = legalSkills(g).find((a) => a.skill === s && predicate(a));
   assert.ok(a, `Expected ${s}`);
   return useSkill(g, currentPlayer(g).id, a.id);
 }
-test("War bank gains both dice, caps at 12, persists and never opens on bonus rolls", () => {
+test("War bank gains half the dice total, persists and never opens on bonus rolls", () => {
   let g = setup();
   g = rollGame(g, "p0", [6, 6]);
-  assert.equal(g.war!.bank.p0, 12);
+  assert.equal(g.war!.bank.p0, 6);
   assert.equal(g.war!.window, false);
   while (g.phase === "move") g = moveGame(g, "p0", legalMoves(g)[0].id);
   assert.equal(g.current, 0);
   assert.equal(g.war!.window, false);
   g = rollGame(g, "p0", [4, 5]);
-  assert.equal(g.war!.bank.p0, 12);
-  assert.match(g.war!.feedback, /9 overflow/);
-  assert.equal(legalSkills(g).length, 0);
+  assert.equal(g.war!.bank.p0, 11);
+  assert.match(g.war!.feedback, /\+5 power/);
+  assert.equal(skillTargets(g).length, 0);
 });
 test("Every complete 2–4 player rotation advances one round, including skipped turns and forfeits", () => {
   for (const count of [2, 3, 4]) {
@@ -129,7 +132,7 @@ test("Track reach wraps correctly, cuts exposed counters only, Double Cut allows
     -1,
   ];
   assert.ok(
-    legalSkills(g).some((a) => a.skill === "double" && a.targets.length === 1),
+    skillTargets(g).some((a) => a.skill === "double" && a.targets.length === 1),
   );
   g = buy(g, "double", (a) => a.targets.length === 2);
   assert.deepEqual(g.players[1].pieces, [-1, -1, -1, -1]);
@@ -137,21 +140,22 @@ test("Track reach wraps correctly, cuts exposed counters only, Double Cut allows
   const shield = fixture();
   shield.war!.effects = [{ owner: "p1", piece: 0, shield: true }];
   assert.ok(
-    !legalSkills(shield).some((a) =>
+    !skillTargets(shield).some((a) =>
       ["long", "double", "switch"].includes(a.skill),
     ),
   );
 });
 test("Switcheroo preserves track positions, excludes protected territory, blocks, yards and home", () => {
   const g = fixture([10, -1, -1, -1], [0, -1, -1, -1]);
-  const a = legalSkills(g).find((a) => a.skill === "switch")!;
+  const a = skillTargets(g).find((a) => a.skill === "switch")!;
   assert.ok(a);
   const before = g.players.map((p) => cellId(p.colour, p.pieces[0]));
-  const n = useSkill(g, "p0", a.id);
+  const prepared = purchaseSkill(g, "p0", "switch");
+  const n = useSkill(prepared, "p0", legalSkills(prepared).find((a) => a.skill === "switch")!.id);
   assert.equal(cellId(0, n.players[0].pieces[0]), before[1]);
   assert.equal(cellId(1, n.players[1].pieces[0]), before[0]);
   g.players[1].pieces = [0, 0, 51, 56];
-  assert.ok(!legalSkills(g).some((a) => a.skill === "switch"));
+  assert.ok(!skillTargets(g).some((a) => a.skill === "switch"));
 });
 test("Slows subtract at most three, retain at least one space, and expire after one move", () => {
   let g = fixture();
@@ -171,7 +175,7 @@ test("Heaven Lock applies to every racer, never stacks, expires before caster’
   assert.ok(legalMoves(g).every((m) => m.to !== 56));
   g = timeoutGame(g);
   g.war!.bank.p1 = 12;
-  assert.ok(!legalSkills(g).some((a) => a.skill === "lock"));
+  assert.ok(!skillTargets(g).some((a) => a.skill === "lock"));
   g = rollGame(g, "p1", [2, 1]);
   assert.ok(legalMoves(g).every((m) => m.to !== 56));
   g = timeoutGame(g);
@@ -213,7 +217,7 @@ test("Slipstream, Quicksand and Danger Tile resolve legal landings without direc
   }
   const g = fixture([54, 56, 56, 56]);
   assert.ok(
-    legalSkills(g)
+    skillTargets(g)
       .filter((a) => a.mode === "forward")
       .every((a) => a.to !== 56),
   );
@@ -253,12 +257,12 @@ test("Purchased attacks cannot target safe terrain, home lanes or a blockade", (
   const g = fixture([15, -1, -1, -1], [3, 3, 51, 56]);
   g.rules.safeSquares = true;
   assert.ok(
-    !legalSkills(g).some((a) => ["long", "double", "switch"].includes(a.skill)),
+    !skillTargets(g).some((a) => ["long", "double", "switch"].includes(a.skill)),
   );
   g.players[1].pieces = [5, 51, 56, -1];
   assert.equal(cellId(1, 5), "track-8");
   assert.ok(
-    !legalSkills(g).some((a) => ["long", "double", "switch"].includes(a.skill)),
+    !skillTargets(g).some((a) => ["long", "double", "switch"].includes(a.skill)),
   );
 });
 test("Draw Back is absorbed by Guard Up and cannot stack a slow", () => {
@@ -268,16 +272,16 @@ test("Draw Back is absorbed by Guard Up and cannot stack a slow", () => {
   assert.equal(effect(n, { owner: "p1", piece: 0 })?.shield, false);
   assert.equal(effect(n, { owner: "p1", piece: 0 })?.slow, undefined);
   g.war!.effects = [{ owner: "p1", piece: 0, slow: 2 }];
-  assert.ok(!legalSkills(g).some((a) => a.mode === "back"));
+  assert.ok(!skillTargets(g).some((a) => a.mode === "back"));
 });
 test("Fast Forward respects blockades, home-entry qualification and cannot finish", () => {
   const g = fixture([5, -1, -1, -1], [46, 46, -1, -1]);
-  assert.ok(!legalSkills(g).some((a) => a.mode === "forward" && a.to! >= 7));
+  assert.ok(!skillTargets(g).some((a) => a.mode === "forward" && a.to! >= 7));
   g.players[0].pieces = [50, -1, -1, -1];
   g.rules.blockBeforeHome = true;
-  assert.ok(!legalSkills(g).some((a) => a.mode === "forward"));
+  assert.ok(!skillTargets(g).some((a) => a.mode === "forward"));
   g.players[0].homeUnlocked = true;
-  assert.ok(legalSkills(g).some((a) => a.mode === "forward"));
+  assert.ok(skillTargets(g).some((a) => a.mode === "forward"));
 });
 test("Danger removes ordinary safe-square protection only after landing and preserves Guard Up", () => {
   let g = fixture([15, -1, -1, -1], [5, -1, -1, -1]);
@@ -319,4 +323,62 @@ test("Switcheroo landings activate hazards for exchanged counters", () => {
   g = buy(g, "switch");
   assert.equal(effect(g, { owner: "p0", piece: 0 })?.slow, 2);
   assert.match(g.war!.feedback, /Quicksand/);
+});
+
+test("Half-total income rounds up for every colour, with capped overflow", () => {
+  for (const [dice, earned] of [[[1, 1], 1], [[2, 3], 3], [[3, 4], 4], [[4, 5], 5], [[6, 6], 6]] as const) {
+    for (let colour = 0; colour < 4; colour++) {
+      const g = setup(4);
+      g.current = colour;
+      const id = currentPlayer(g).id;
+      const n = rollGame(g, id, [...dice]);
+      assert.equal(n.war!.bank[id], earned);
+      g.war!.bank[id] = 11;
+      const capped = rollGame(g, id, [...dice]);
+      assert.equal(capped.war!.bank[id], 12);
+      if (earned > 1) assert.match(capped.war!.feedback, new RegExp(`${earned - 1} overflow lost`));
+    }
+  }
+});
+
+test("Prepared slot can be bought without targets, held across rounds and deployed later for free", () => {
+  let g = setup();
+  g.war!.bank.p0 = 12;
+  assert.equal(legalSkills(g).length, 0);
+  g = purchaseSkill(g, "p0", "long");
+  assert.equal(g.war!.bank.p0, 3);
+  assert.equal(g.war!.prepared!.p0, "long");
+  assert.equal(legalSkills(g).length, 0);
+  assert.throws(() => purchaseSkill(g, "p0", "guard"));
+  assert.throws(() => purchaseSkill(g, "p1", "guard"));
+  g = rollGame(g, "p0", [6, 6]);
+  assert.equal(g.war!.prepared!.p0, "long");
+  assert.equal(legalSkills(g).length, 0);
+  g = timeoutGame(timeoutGame(g));
+  g.players[0].pieces[0] = 10;
+  g.players[1].pieces[0] = 0;
+  const action = legalSkills(g).find((a) => a.skill === "long")!;
+  assert.ok(action);
+  const bank = g.war!.bank.p0;
+  const count = g.war!.purchases.p0.long;
+  assert.throws(() => useSkill(g, "p0", "forged"));
+  g = useSkill(g, "p0", action.id);
+  assert.equal(g.war!.prepared!.p0, undefined);
+  assert.equal(g.war!.bank.p0, bank);
+  assert.equal(g.war!.purchases.p0.long, count);
+  assert.throws(() => purchaseSkill(g, "p0", "guard"));
+  assert.throws(() => useSkill(g, "p0", action.id));
+});
+
+test("Purchase and deployment in one window charge once and reject repeat sequences", () => {
+  const initial = fixture();
+  const g = purchaseSkill(initial, "p0", "guard");
+  assert.equal(initial.war!.prepared!.p0, undefined);
+  assert.equal(g.war!.window, true);
+  const n = useSkill(g, "p0", legalSkills(g)[0].id);
+  assert.equal(n.war!.bank.p0, 9);
+  assert.equal(n.war!.purchases.p0.guard, 1);
+  assert.equal(n.war!.window, false);
+  assert.throws(() => purchaseSkill(n, "p0", "tempo"));
+  assert.throws(() => purchaseSkill(initial, "p0", "invalid" as Skill));
 });

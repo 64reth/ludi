@@ -283,7 +283,7 @@ test("War roll presentation includes bank gain and discarded overflow", () => {
   const rolled = rollGame(g, "a", [4, 5]);
   const t = describeTransition(g, rolled);
   assert.match(t.message, /\+2 power/);
-  assert.match(t.message, /7 overflow lost/);
+  assert.match(t.message, /3 overflow lost/);
   assert.equal(g.war!.bank.a, 10);
   assert.equal(rolled.war!.bank.a, 12);
 });

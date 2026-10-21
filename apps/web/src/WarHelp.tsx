@@ -14,11 +14,11 @@ export function needsWarIntro() {
 const lessons = [
   {
     title: "Roll to earn. Buy before rolling.",
-    text: "Both dice add their face values to your shared War Bank, up to 12 points. Overflow is lost. At the start of a later normal turn, choose Use Skill or Roll Dice. Confirming a skill spends its displayed price; cancelling spends nothing.",
+    text: "Each roll adds half the combined dice total, rounded up to your shared War Bank, up to 12 points. Overflow is lost. At the start of a later normal turn, choose Prepare Skill or Roll Dice. Confirming a purchase spends its price and fills your one prepared slot. Hold it across turns, or deploy before rolling when a legal target exists.",
   },
   {
     title: "One skill per table rotation.",
-    text: "You may buy one skill before your first roll in a normal turn. Rolling closes the window. Sixes and bonus rolls do not reopen it. Your next opportunity comes after the other active players complete their normal turns. Prices rise by 3 after each purchase, up to 12.",
+    text: "You may buy one skill into an empty slot before your first roll in a normal turn. Deploy at most one skill per table rotation; you cannot buy again after deployment in that window. Rolling closes the window. Sixes and bonus rolls do not reopen it. Your next opportunity comes after the other active players complete their normal turns. Prices rise by 3 after each purchase, up to 12.",
   },
   {
     title: "Read the battlefield.",

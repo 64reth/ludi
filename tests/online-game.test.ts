@@ -132,7 +132,7 @@ for (const mode of ["heritage", "war"] as const)
         /Unsupported/,
       );
       const hostId = room.hostId;
-      let actions = 0;
+      let actions = 0, purchases = 0, deployments = 0;
       while (room.game!.phase !== "finished" && actions++ < 6000) {
         const g = room.game!,
           actor = currentPlayer(g).id === hostId ? a : b;
@@ -158,6 +158,21 @@ for (const mode of ["heritage", "war"] as const)
           (r) => !!r.game && r.game.revision === room.game!.revision,
         );
         assert.deepEqual(other.game, room.game);
+        if (skill) {
+          const owner = currentPlayer(g).id;
+          if (skill.id.startsWith("purchase:")) {
+            purchases++;
+            assert.equal(room.game!.war!.prepared![owner], skill.skill);
+            assert.equal(room.game!.war!.bank[owner], g.war!.bank[owner] - skill.cost);
+            assert.deepEqual(room.game!.players, g.players);
+            assert.equal(room.game!.war!.window, true);
+          } else {
+            deployments++;
+            assert.equal(room.game!.war!.prepared![owner], undefined);
+            assert.equal(room.game!.war!.bank[owner], g.war!.bank[owner]);
+            assert.equal(room.game!.war!.window, false);
+          }
+        }
         if (actions === 2) {
           actor.send(command);
           const err = await actor.next((v) => v.type === "error");
@@ -172,6 +187,7 @@ for (const mode of ["heritage", "war"] as const)
         room.game!.players.reduce((n, p) => n + p.captures, 0) > 0,
         "Match should exercise captures",
       );
+      if (mode === "war") { assert.ok(purchases > 0); assert.ok(deployments > 0); }
       const old = room.game!;
       a.send({ type: "rematch" });
       await a.state((r) => r.rematchReady?.length === 1);
@@ -184,6 +200,7 @@ for (const mode of ["heritage", "war"] as const)
         assert.ok(room.game!.war);
         assert.ok(Object.values(room.game!.war!.bank).every((v) => v === 0));
         assert.equal(room.game!.war!.round, 1);
+        assert.deepEqual(room.game!.war!.prepared, {});
       }
       assert.deepEqual(room.rules, r);
       assert.ok(

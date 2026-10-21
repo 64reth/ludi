@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import {
   skills,
   cost,
+  purchaseReason,
   type Ref,
   type Skill,
 } from "../../../packages/war/index";
@@ -88,7 +89,7 @@ export function WarPanel({
           <h2>
             War Bank: {w.bank[p.id]}/12{" "}
             <HelpTip label="War Bank cap">
-              Both dice add their total face values. Your shared bank holds at
+              Each roll earns half the dice total, rounded up. Your shared bank holds at
               most 12; overflow is discarded. Unspent points persist. Purchases
               are immediate, and each skill’s price rises by 3 up to 12.
             </HelpTip>
@@ -109,36 +110,43 @@ export function WarPanel({
       </p>
       {flow.problem && (
         <p className="skill-unavailable" role="alert">
-          {flow.problem} Nothing has been spent.
+          {flow.problem} Your prepared skill is still held.
         </p>
       )}
       <p className="skill-step" aria-live="polite">
         {stepText}
       </p>
-      {!skill ? (
+      {!w.prepared?.[p.id] ? (
         <div className="war-skills">
           {(Object.keys(skills) as Skill[]).map((s) => (
             <div key={s} className="skill-card">
               <button
                 aria-label={`Choose ${skills[s].name}`}
+                disabled={!canAct || pending || !!purchaseReason(game, s)}
                 onClick={() => flow.selectSkill(s)}
               >
                 <strong>
                   {skills[s].name} · {cost(game, s)} points
                 </strong>
                 <small>
-                  {unavailable(game, s) || "Available before rolling"}
+                  {purchaseReason(game, s) || "Purchase and hold; no target required"}
                 </small>
               </button>
+              {skill === s && <div className="skill-confirm">
+                <p>Spend {cost(game, s)} now → bank {w.bank[p.id] - cost(game, s)}/12. Keep this skill until deployed. Next purchase: {Math.min(12, cost(game, s) + 3)}.</p>
+                <button disabled={!canAct || pending || !!purchaseReason(game, s)} onClick={() => onUse(`purchase:${s}`)}>Confirm Purchase · {skills[s].name}</button>
+              </div>}
               <HelpTip label={skills[s].name}>{abilityDescription(s)}</HelpTip>
             </div>
           ))}
         </div>
+      ) : !skill ? (
+        <div><p>{skills[w.prepared[p.id]].name} ready. Hold it for a later turn, or deploy now.</p><button onClick={() => flow.selectSkill(w.prepared![p.id])}>Deploy Prepared Skill</button><button className="ghost" onClick={onClose}>Hold · return to dice</button></div>
       ) : (
         <>
           <div className="selected-skill-heading">
             <h3>
-              {skills[skill].name} · {cost(game, skill)} points
+              {skills[skill].name} · prepared
             </h3>
             <HelpTip label="skill price and range">
               {abilityDescription(skill)}
@@ -217,13 +225,11 @@ export function WarPanel({
                   {skill === "double" && choice.targets.length === 1 && (
                     <p>
                       Single-target Double Cut: only this counter will be sent
-                      to the Yard. The price stays {choice.cost}.
+                      to the Yard. Your prepared skill will be consumed.
                     </p>
                   )}
                   <p>
-                    Spend {choice.cost} now → bank {w.bank[p.id] - choice.cost}
-                    /12. Next purchase of this skill:{" "}
-                    {Math.min(12, choice.cost + 3)} points.
+                    Deploy your prepared skill. No further points are charged; your slot becomes empty.
                   </p>
                   <button
                     className="primary"
@@ -232,7 +238,7 @@ export function WarPanel({
                   >
                     {pending
                       ? "Waiting for table confirmation…"
-                      : `Confirm ${skills[skill].name} · ${choice.cost} points`}
+                      : `Confirm Deployment · ${skills[skill].name}`}
                   </button>
                 </div>
               )}
@@ -247,15 +253,14 @@ export function WarPanel({
               ← Back
             </button>
             <button className="ghost" onClick={onClose} disabled={pending}>
-              Cancel · spend nothing
+              Hold · return to dice
             </button>
           </div>
         </>
       )}
       {pending && (
         <p role="status">
-          Validating the action. Points are deducted only after the table
-          accepts it.
+          Validating the action with the table.
         </p>
       )}
     </section>
