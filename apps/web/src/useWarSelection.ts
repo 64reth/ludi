@@ -43,7 +43,7 @@ export function useWarSelection(game: Game, report: (text: string) => void) {
         ? "source"
         : skill === "tempo" && mode === "forward"
           ? "distance"
-          : skill === "guard" || skill === "lock"
+          : skill === "guard" || skill === "lock" || skill === "jump"
             ? "confirm"
             : targets.length === 0
               ? "target"
@@ -73,7 +73,7 @@ export function useWarSelection(game: Game, report: (text: string) => void) {
     setProblem("");
     if (step === "source") {
       setSource(r);
-      if (skill === "guard") setChoice(pool.find((a) => sameRef(a.source, r)));
+      if (skill === "guard" || skill === "jump") setChoice(pool.find((a) => sameRef(a.source, r)));
     } else {
       const next = [...targets, r];
       setTargets(next);
@@ -134,7 +134,7 @@ export function useWarSelection(game: Game, report: (text: string) => void) {
     preview:
       choice ??
       (skill && source
-        ? ({ ...matching[0], source, targets } as SkillAction)
+        ? ({ ...matching[0], skill, source, targets } as SkillAction)
         : undefined),
   };
 }

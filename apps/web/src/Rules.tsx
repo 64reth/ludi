@@ -1,3 +1,13 @@
+import {
+  Icon,
+  BookOpen,
+  ArrowLeft,
+  ChevronRight,
+  Check,
+  RotateCcw,
+  TriangleAlert,
+  LockKeyhole,
+} from "./icons";
 import { useState } from "react";
 import {
   fields,
@@ -36,9 +46,14 @@ export function RulesStudio({
       <div className="screen-title">
         <div>
           <span className="kicker">YOUR TABLE. YOUR RULES.</span>
-          <h1>Match rules</h1>
+          <h1>
+            <Icon icon={BookOpen} size={24} /> Match rules
+          </h1>
         </div>
-        <span className="pill">{locked ? "View only" : "House rules"}</span>
+        <span className="pill">
+          <Icon icon={locked ? LockKeyhole : BookOpen} size={14} />{" "}
+          {locked ? "View only" : "House rules"}
+        </span>
       </div>
       <div className="rules-workspace">
         <aside className="rules-nav">
@@ -80,10 +95,11 @@ export function RulesStudio({
               <button
                 key={g}
                 className={group === g ? "selected" : ""}
+                aria-current={group === g ? "page" : undefined}
                 onClick={() => setGroup(g)}
               >
-                {g}
-                <span aria-hidden="true">→</span>
+                {group === g && <Icon icon={Check} />} {g}
+                <Icon icon={ChevronRight} />
               </button>
             ))}
           </nav>
@@ -184,6 +200,7 @@ export function RulesStudio({
       </div>
       {errors.length > 0 && (
         <div className="validation" role="alert">
+          <Icon icon={TriangleAlert} />
           {errors.map((e) => (
             <p key={e}>{e}</p>
           ))}
@@ -210,7 +227,7 @@ export function RulesStudio({
                 })
               }
             >
-              Reset preset
+              <Icon icon={RotateCcw} /> Reset preset
             </button>
           )}
           <button
@@ -218,8 +235,9 @@ export function RulesStudio({
             disabled={pending || (!locked && errors.length > 0)}
             onClick={locked ? onBack : onApply}
           >
+            <Icon icon={locked ? ArrowLeft : Check} />{" "}
             {locked ? "Back" : pending ? "Saving…" : "Save & return"}{" "}
-            <span aria-hidden="true">→</span>
+            <Icon icon={ChevronRight} />
           </button>
         </div>
       </div>

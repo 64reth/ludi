@@ -29,6 +29,7 @@ export function unavailable(g: Game, s: Skill) {
   const c = 0;
   if (w.bank[p.id] < c)
     return `Need ${c - w.bank[p.id]} more points (${c} required).`;
+  if (s === "jump" && !legalSkills(g).length) return "No opposing blockade within 6 forward track spaces with an empty landing beyond it. Home lanes and Heaven cannot be jumped into.";
   if (s === "lock" && w.lock)
     return "Heaven is already sealed. A lock cannot be refreshed or stacked.";
   if (!legalSkills(g).some((a) => a.skill === s))
@@ -47,6 +48,7 @@ export function rangeHelp(s: Skill) {
       "Fast Forward: choose your counter, then 1–3 legal spaces. Draw Back: choose an opposing shared-track counter. No range limit for Draw Back; shields absorb it.",
     switch:
       "Choose your exposed counter and one exposed opponent within 6 connected shared-track spaces. No protected squares, stacks, Yard, home lanes or Heaven.",
+    jump: "Choose one of your shared-track counters. Leap the nearest opposing blockade within 6 forward track spaces to the empty square immediately beyond it. No captures, stacks, home entry or Heaven finish. Other movement rules remain unchanged.",
     long: "Choose your track counter, then one exposed opponent within 4 connected track spaces. No safe squares, shields or stacks.",
     double:
       "Choose your track counter, then 1 or 2 exposed opponents within 3 connected track spaces. One target costs the same 12-point base price.",

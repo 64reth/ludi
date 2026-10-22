@@ -1,3 +1,13 @@
+import {
+  Icon,
+  X,
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
+  Scroll,
+  Info,
+  RotateCcw,
+} from "./icons";
 import { useState, useEffect, useRef } from "react";
 import { hazardName } from "../../../packages/war/index";
 import type { Game } from "../../../packages/game-engine/index";
@@ -71,6 +81,9 @@ export function WarHelp({
     >
       <header>
         <h2 aria-live="polite">
+          <Icon
+            icon={page === "key" ? BookOpen : page === "events" ? Scroll : Info}
+          />
           {page === "intro"
             ? `Welcome to War · ${step + 1}/3`
             : page === "key"
@@ -78,7 +91,7 @@ export function WarHelp({
               : "Match Events"}
         </h2>
         <button className="ghost" aria-label="Close War help" onClick={finish}>
-          ×
+          <Icon icon={X} />
         </button>
       </header>
       {page === "intro" ? (
@@ -88,14 +101,14 @@ export function WarHelp({
           <div className="button-row">
             {step > 0 && (
               <button className="secondary" onClick={() => setStep(step - 1)}>
-                Back
+                <Icon icon={ArrowLeft} /> Back
               </button>
             )}
             <button
               className="primary"
               onClick={() => (step < 2 ? setStep(step + 1) : finish())}
             >
-              {step < 2 ? "Next →" : "Let’s play"}
+              {step < 2 ? "Next" : "Let’s play"} <Icon icon={ArrowRight} />
             </button>
           </div>
           <button className="ghost" onClick={finish}>
@@ -191,7 +204,7 @@ export function WarHelp({
               : "Next warning has not arrived."}
           </p>
           <button className="secondary" onClick={() => onPage("intro")}>
-            Replay introduction
+            <Icon icon={RotateCcw} /> Replay introduction
           </button>
         </>
       ) : (

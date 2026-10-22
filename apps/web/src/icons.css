@@ -1,0 +1,115 @@
+/* One quiet interface icon system; custom board art and dice faces stay separate. */
+.ui-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: -0.2em;
+  pointer-events: none;
+  color: currentColor;
+}
+button > .ui-icon + .ui-icon {
+  margin-inline-start: 4px;
+}
+button > .ui-icon:first-child:not(:last-child),
+summary > .ui-icon:first-child:not(:last-child) {
+  margin-inline-end: 5px;
+}
+button > .ui-icon:last-child:not(:first-child) {
+  margin-inline-start: 4px;
+}
+button[aria-label^="Close"],
+button[aria-label^="Cancel skill"],
+.war-drawer > header button[aria-label^="Close"] {
+  min-width: 44px;
+  min-height: 44px;
+}
+.disclosure-icon {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-inline-start: 4px;
+}
+details[open] > summary .when-closed,
+details:not([open]) > summary .when-open {
+  display: none;
+}
+summary:has(.disclosure-icon) {
+  list-style: none;
+}
+summary:has(.disclosure-icon)::-webkit-details-marker {
+  display: none;
+}
+summary:has(.disclosure-icon)::marker {
+  content: "";
+}
+.help-tip summary .ui-icon {
+  margin: 0;
+}
+button[aria-pressed="true"],
+.rules-nav button[aria-current="page"] {
+  border-style: solid;
+}
+.selected-icon {
+  margin-inline-start: 3px;
+}
+/* Keep text on the next line for the compact, labelled mobile toolbar. */
+.mobile-tools button > .ui-icon {
+  width: 18px;
+  height: 18px;
+  margin: 0 0 2px;
+}
+.mobile-bank strong .ui-icon {
+  vertical-align: -0.18em;
+}
+.mobile-bank > span .ui-icon {
+  width: 12px;
+  height: 12px;
+}
+.mobile-target-heading strong .ui-icon {
+  margin-inline-end: 5px;
+}
+.mobile-sheet-heading h2 .ui-icon {
+  margin-inline-end: 5px;
+}
+.mobile-sheet .skill-card strong .ui-icon {
+  margin-inline-end: 5px;
+}
+/* Explicit dimensions override the board's full-size SVG rule for its close control. */
+.board-frame button .ui-icon {
+  width: 18px;
+  height: 18px;
+}
+.war-notice .ui-icon {
+  vertical-align: -0.18em;
+}
+.connection-note .ui-icon,
+.mobile-connection .ui-icon {
+  margin-inline-end: 4px;
+}
+@media (max-width: 650px),
+  (max-width: 950px) and (max-height: 500px) and (orientation: landscape) {
+  .help-tip summary {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .mobile-bank strong > .ui-icon:first-child {
+    width: 13px;
+    height: 13px;
+  }
+  .mobile-action-row .dice-section > .primary > .ui-icon {
+    width: 18px;
+    height: 18px;
+  }
+  .mobile-prepare > .ui-icon {
+    width: 15px;
+    height: 15px;
+  }
+}
+.help-tip summary {
+  border-color: transparent;
+}
+/* The roll icon belongs beside its label, rather than at opposite button edges. */
+.dice-section > .primary,
+.mobile-target-actions > .primary,
+.skill-confirm > .primary {
+  justify-content: center;
+  gap: 6px;
+}

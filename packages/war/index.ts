@@ -3,6 +3,7 @@ import {
   cellId,
   currentPlayer,
   directMove,
+  blockJump,
   directGroupMove,
   type Game,
   type Move,
@@ -28,6 +29,11 @@ export const skills = {
     name: "Long Cut",
     base: 9,
     help: "Cut one exposed opponent within 4 track spaces.",
+  },
+  jump: {
+    name: "Block Jumper",
+    base: 9,
+    help: "Leap one counter over the nearest opposing blockade within 6 track spaces, landing on the empty square immediately beyond it.",
   },
   double: {
     name: "Double Cut",
@@ -315,6 +321,8 @@ export function skillTargets(g: Game): SkillAction[] {
           "forward",
         );
     }
+    const leap = blockJump(g, s.piece);
+    if (leap) add("jump", `Counter ${s.piece + 1}: jump blockade · advance ${leap.to - leap.from} spaces`, s, [], leap.to);
     const n = track(g, s);
     if (n < 0) continue;
     const nearby = enemies.filter((t) => exposed(g, t));
@@ -388,7 +396,7 @@ export function purchaseSkill(g: Game, actor: string, skill: Skill): Game {
   recordEvent(n, "war", w.feedback, "war", "skill");
   return n;
 }
-export const skillIcons: Record<Skill, string> = { guard: "◇", tempo: "↔", switch: "⇄", long: "⚔", double: "⚔⚔", lock: "▣" };
+export const skillIcons: Record<Skill, string> = { guard: "◇", tempo: "↔", switch: "⇄", long: "⚔", jump: "↷", double: "⚔⚔", lock: "▣" };
 function swapLegal(g: Game, a: Ref, b: Ref) {
   const p = g.players.find((p) => p.id === a.owner)!,
     q = g.players.find((p) => p.id === b.owner)!;
@@ -417,6 +425,11 @@ export function useSkill(g: Game, actor: string, id: string): Game {
     refs: [...(a.source ? [a.source] : []), ...a.targets],
   };
   if (a.skill === "guard") setEffect(n, a.source!).shield = true;
+  else if (a.skill === "jump") {
+    const m = blockJump(n, a.source!.piece)!;
+    applyDirect(n, m);
+    afterMove(n, m, false);
+  }
   else if (a.skill === "tempo" && a.mode === "back") {
     const e = setEffect(n, a.targets[0]);
     if (e.shield) {
@@ -481,6 +494,8 @@ export function useSkill(g: Game, actor: string, id: string): Game {
   const detail =
     a.skill === "guard"
       ? `${counterLabel(n, a.source!.owner, a.source!.piece)} is shielded against the next eligible cut or hostile effect, until their next normal turn.`
+      : a.skill === "jump"
+        ? `${counterLabel(n, p.id, a.source!.piece)} leapt the blockade without cutting or entering home.`
       : a.skill === "long" || a.skill === "double"
         ? `${a.targets.map((t) => counterLabel(n, t.owner, t.piece)).join(" and ")} sent to the Yard.`
         : a.skill === "switch"
@@ -598,8 +613,10 @@ export function chooseSkill(g: Game): SkillAction | undefined {
           ? 220 * a.targets.length
           : a.skill === "long"
             ? 200
+            : a.skill === "jump"
+              ? 120 + (a.to! - p.pieces[a.source!.piece])
             : a.skill === "switch"
-              ? 60
+              ? 40 + 12 * ((track(g, a.targets[0]) - gates[p.colour] + 52) % 52 - p.pieces[a.source!.piece])
               : a.skill === "tempo" && a.mode === "forward"
                 ? 30 + (a.to || 0)
                 : a.skill === "guard"
@@ -616,7 +633,7 @@ export function chooseSkill(g: Game): SkillAction | undefined {
     .sort((a, b) => b.score - a.score || a.a.id.localeCompare(b.a.id));
   const best = ranked[0];
   return best &&
-    (best.score >= 100 || (g.war.bank[p.id] >= 10 && best.score > 0))
+    (best.score >= 100 || (g.war.prepared?.[p.id] && best.score > 0) || (g.war.bank[p.id] >= 10 && best.score > 0))
     ? g.war.prepared?.[p.id] ? best.a : { ...best.a, id: `purchase:${best.a.skill}` }
     : undefined;
 }

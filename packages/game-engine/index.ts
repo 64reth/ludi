@@ -660,3 +660,21 @@ export function directGroupMove(
     return;
   return m;
 }
+
+/** War-only leap. Only passage through the named enemy blockade is bypassed. */
+export function blockJump(g: Game, piece: number): Move | undefined {
+  if (!g.war || !Number.isInteger(piece) || piece < 0 || piece > 3) return;
+  const p = currentPlayer(g), from = p.pieces[piece];
+  if (from < 0 || from > 50) return;
+  for (let step = from + 1; step <= Math.min(from + 6, 49); step++) {
+    const others = occupants(g, cellId(p.colour, step)).filter(o => o.player !== g.current);
+    if (others.length < g.rules.blockSize) continue;
+    const to = step + 1;
+    // A jump never captures, stacks, enters a home lane or finishes.
+    if (occupants(g, cellId(p.colour, to)).length) return;
+    return {
+      id: `${g.match}:${g.revision}:jump:${piece}`, playerId: p.id,
+      pieces: [piece], dice: [], from, to, kind: "move", captures: [], formsBlock: false,
+    };
+  }
+}

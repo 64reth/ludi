@@ -2,6 +2,8 @@ import {
   useSkill,
   chooseSkill,
   legalSkills,
+  purchaseReason,
+  type Skill,
 } from "../../../packages/war/index";
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import {
@@ -155,7 +157,8 @@ export function useLocalMatch(
       setGame((g) =>
         g &&
         !currentPlayer(g).computer &&
-        legalSkills(g).some((a) => a.id === id)
+        (legalSkills(g).some((a) => a.id === id) ||
+          (id.startsWith("purchase:") && !purchaseReason(g, id.slice(9) as Skill)))
           ? useSkill(g, currentPlayer(g).id, id)
           : g,
       );

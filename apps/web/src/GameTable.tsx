@@ -1,9 +1,34 @@
+import {
+  Icon,
+  SkillIcon,
+  SelectedIcon,
+  Menu,
+  Users,
+  ArrowRight,
+  ArrowUpRight,
+  BookOpen,
+  Scroll,
+  Coins,
+  ChevronDown,
+  ChevronUp,
+  Zap,
+  X,
+  WifiOff,
+  Bot,
+  UserRound,
+  Footprints,
+  Crosshair,
+  RotateCcw,
+  Check,
+} from "./icons";
+import { MobileGameTable } from "./MobileGameTable";
+import { useMobileLayout } from "./useMobileLayout";
 import { WarHelp, needsWarIntro, type HelpPage } from "./WarHelp";
 import { HelpTip } from "./HelpTip";
 import { useWarFeedback } from "./useWarFeedback";
 import { useWarSelection } from "./useWarSelection";
 import { windowReason, unavailable } from "../../../packages/war/guidance";
-import { skills, skillIcons, type Skill } from "../../../packages/war/index";
+import { skills, type Skill } from "../../../packages/war/index";
 import { WarPanel } from "./WarPanel";
 import type { SkillAction } from "../../../packages/war/index";
 import {
@@ -92,6 +117,7 @@ export function GameTable({
   onRules: () => void;
   paused: boolean;
 }) {
+  const mobile = useMobileLayout();
   const [warOpen, setWarOpen] = useState(false),
     [help, setHelp] = useState<HelpPage | undefined>(() =>
       game.war && needsWarIntro() ? "intro" : undefined,
@@ -129,7 +155,10 @@ export function GameTable({
     }
   }, [introRequest]);
   useEffect(() => {
-    if (submitted?.startsWith("purchase:") && game.war?.prepared?.[currentPlayer(game).id]) {
+    if (
+      submitted?.startsWith("purchase:") &&
+      game.war?.prepared?.[currentPlayer(game).id]
+    ) {
       setSubmitted(undefined);
       flow.reset();
     }
@@ -222,6 +251,129 @@ export function GameTable({
   const colour = colours[p.colour];
   const accent = ["#de6954", "#6eb87a", "#f2c541", "#6aaed0"][p.colour];
   const ordered = [...display.players].sort((a, b) => a.colour - b.colour);
+  const board = (
+    <Board
+      game={display}
+      skillPreview={skillPreview}
+      skillActions={mobile && warOpen && canAct ? flow.matching : undefined}
+      skillCandidates={warOpen && canAct ? flow.eligible : undefined}
+      onSkillPiece={warOpen && canAct ? (r) => flow.choose(r) : undefined}
+      moves={moves}
+      selectedPiece={selection}
+      onPiece={(i) => {
+        select(i);
+        setTarget(undefined);
+      }}
+      onDestination={(actions) => {
+        if (!canAct) return;
+        if (actions.length === 1) onMove(actions[0].id);
+        else setTarget(actions[0].to);
+      }}
+      canAct={canAct}
+      seat={p.colour}
+      safeSquares={display.rules.safeSquares}
+      presentation={presentation}
+      motionPaused={paused}
+    />
+  );
+  const notice = display.war ? (
+    <div
+      ref={noticeRegion}
+      className="war-notice"
+      data-tone={feedback.view.current?.tone || "ordinary"}
+      onMouseEnter={() => setNoticeHover(true)}
+      onMouseLeave={() => setNoticeHover(false)}
+      onFocusCapture={() => setNoticeFocus(true)}
+      onBlurCapture={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setNoticeFocus(false);
+      }}
+    >
+      <p role="status" aria-live="polite">
+        <span className="notice-context">
+          {feedback.view.current?.round
+            ? `Round ${feedback.view.current.round} · match event`
+            : "Match event"}
+        </span>
+        {feedback.view.current?.text ||
+          "War: choose Battlefield Key for symbols, or Match Events to review the action."}
+      </p>
+      {feedback.view.current && (
+        <button
+          className="text-button"
+          onClick={feedback.queue.dismiss}
+          aria-label="Dismiss match notification"
+        >
+          {feedback.view.waiting
+            ? `Next (${feedback.view.waiting})`
+            : "Dismiss"}{" "}
+          <Icon icon={feedback.view.waiting ? ArrowRight : X} size={14} />
+        </button>
+      )}
+    </div>
+  ) : (
+    presentation.message || display.events.at(-1)?.text
+  );
+  if (mobile)
+    return (
+      <MobileGameTable
+        game={game}
+        display={display}
+        board={board}
+        notice={notice}
+        canAct={canAct}
+        busy={busy}
+        instruction={instruction}
+        values={values}
+        remaining={remaining}
+        rolling={stage === "dice"}
+        selection={selection}
+        target={target}
+        select={(i) => {
+          select(selection === i ? undefined : i);
+          setTarget(undefined);
+        }}
+        clearSelection={() => {
+          select(undefined);
+          setTarget(undefined);
+        }}
+        shown={shown}
+        moves={moves}
+        onMove={onMove}
+        onPass={onPass}
+        onRoll={() => {
+          setWarOpen(false);
+          flow.reset();
+          onRoll();
+        }}
+        muted={muted}
+        onMute={onMute}
+        flow={flow}
+        warOpen={warOpen}
+        setWarOpen={setWarOpen}
+        submitted={submitted}
+        onSkill={(id) => {
+          setSubmitted(id);
+          onSkill(id);
+        }}
+        cancelSkill={() => {
+          setWarOpen(false);
+          flow.reset();
+          setSubmitted(undefined);
+        }}
+        help={help}
+        setHelp={setHelp}
+        history={feedback.view.history}
+        deadlineText={
+          deadline
+            ? `${Math.max(0, Math.ceil((deadline - now) / 1000))}s`
+            : undefined
+        }
+        online={online}
+        connected={connected}
+        paused={paused}
+        accent={accent}
+      />
+    );
   return (
     <div
       className={`table-screen playable-table clarity-table ${display.war ? "war-table" : ""} ${paused ? "presentation-paused" : ""}`}
@@ -237,6 +389,7 @@ export function GameTable({
             <div className="active-identity">
               <strong>{p.name}</strong>
               <span className="player-kind">
+                <Icon icon={p.computer ? Bot : UserRound} size={14} />{" "}
                 {p.computer ? "Computer" : "Human"}
               </span>
             </div>
@@ -250,14 +403,17 @@ export function GameTable({
             {display.war && (
               <button
                 className="war-bank"
+                aria-expanded={warOpen}
                 aria-label={`War Bank ${display.war.bank[p.id]} out of 12. Open skills`}
                 onClick={() => {
                   setWarOpen(!warOpen);
                   setHelp(undefined);
                 }}
               >
-                War Bank <strong>{display.war.bank[p.id]}/12</strong>
+                <Icon icon={Coins} /> War Bank{" "}
+                <strong>{display.war.bank[p.id]}/12</strong>
                 <small>{display.war.window ? "Open" : "Closed"}</small>
+                <Icon icon={warOpen ? ChevronUp : ChevronDown} size={14} />
               </button>
             )}
           </div>
@@ -279,7 +435,21 @@ export function GameTable({
                 <span title={r.name}>
                   {r.name}
                   {r.forfeited ? " · Left" : ""}
-                  {display.war && <small className="prepared-summary">{display.war.prepared?.[r.id] ? `${skillIcons[display.war.prepared[r.id]]} ${skills[display.war.prepared[r.id]].name} ready` : "No skill prepared"}</small>}
+                  {display.war && (
+                    <small className="prepared-summary">
+                      {display.war.prepared?.[r.id] ? (
+                        <>
+                          <SkillIcon
+                            skill={display.war.prepared[r.id]}
+                            size={12}
+                          />{" "}
+                          {skills[display.war.prepared[r.id]].name} ready
+                        </>
+                      ) : (
+                        "No skill prepared"
+                      )}
+                    </small>
+                  )}
                 </span>
                 <small>{r.pieces.filter((v) => v === 56).length}/4</small>
               </div>
@@ -323,15 +493,17 @@ export function GameTable({
                       : "Skill window closed"}
                   </strong>
                   <HelpTip label="bank and skill window">
-                    Earn half the dice total, rounded up, capped at 12; overflow is lost. Buy one skill to hold or deploy before your first roll.
-                    Bonus rolls do not reopen this window. Unspent points
+                    Earn half the dice total, rounded up, capped at 12; overflow
+                    is lost. Buy one skill to hold or deploy before your first
+                    roll. Bonus rolls do not reopen this window. Unspent points
                     persist.
                   </HelpTip>
                 </div>
                 {canAct && display.war.window ? (
                   <>
                     <p className="pre-roll-prompt">
-                      Prepare, deploy, or roll. Holding a skill is always allowed.
+                      Prepare, deploy, or roll. Holding a skill is always
+                      allowed.
                     </p>
                     <button
                       className="primary use-skill"
@@ -340,7 +512,10 @@ export function GameTable({
                         setHelp(undefined);
                       }}
                     >
-                      {display.war.prepared?.[p.id] ? "Deploy Prepared Skill" : "Prepare Skill"}
+                      <Icon icon={Zap} />{" "}
+                      {display.war.prepared?.[p.id]
+                        ? "Deploy Prepared Skill"
+                        : "Prepare Skill"}
                     </button>
                     {!Object.keys(skills).some(
                       (s) => !unavailable(game, s as Skill),
@@ -379,7 +554,8 @@ export function GameTable({
                       }}
                     >
                       {i + 1}
-                      {v === 56 ? " ✓" : ""}
+                      {v === 56 && <Icon icon={Check} size={12} />}
+                      <SelectedIcon selected={selection === i} />
                     </button>
                   ))}
                 </div>
@@ -390,7 +566,11 @@ export function GameTable({
                       key={m.id}
                       onClick={() => onMove(m.id)}
                     >
-                      {moveLabel(game, m)} <span aria-hidden="true">→</span>
+                      <Icon
+                        icon={m.captures.length ? Crosshair : Footprints}
+                        size={16}
+                      />{" "}
+                      {moveLabel(game, m)} <Icon icon={ArrowRight} />
                     </button>
                   ))}
                 </div>
@@ -422,7 +602,7 @@ export function GameTable({
                   setWarOpen(false);
                 }}
               >
-                Battlefield Key
+                <Icon icon={BookOpen} /> Battlefield Key
               </button>
               <button
                 className="text-button"
@@ -432,21 +612,22 @@ export function GameTable({
                   setWarOpen(false);
                 }}
               >
-                Match Events ({feedback.view.history.length})
+                <Icon icon={Scroll} /> Match Events (
+                {feedback.view.history.length})
               </button>
             </nav>
           )}
           <div className="table-essential">
             <button className="secondary" onClick={onRules}>
-              Match rules ↗
+              <Icon icon={BookOpen} /> Match rules <Icon icon={ArrowUpRight} />
             </button>
             <button className="ghost" onClick={onPause}>
-              ☰ Pause / menu
+              <Icon icon={Menu} /> Pause / menu
             </button>
           </div>
           {online && !connected && (
             <p className="connection-note">
-              Reconnecting… Your seat is reserved.
+              <Icon icon={WifiOff} /> Reconnecting… Your seat is reserved.
             </p>
           )}
         </CommandContent>
@@ -497,28 +678,7 @@ export function GameTable({
           </span>
         </div>
         <div className="table-board">
-          <Board
-            game={display}
-            skillPreview={skillPreview}
-            skillCandidates={warOpen && canAct ? flow.eligible : undefined}
-            onSkillPiece={warOpen && canAct ? (r) => flow.choose(r) : undefined}
-            moves={moves}
-            selectedPiece={selection}
-            onPiece={(i) => {
-              select(i);
-              setTarget(undefined);
-            }}
-            onDestination={(actions) => {
-              if (!canAct) return;
-              if (actions.length === 1) onMove(actions[0].id);
-              else setTarget(actions[0].to);
-            }}
-            canAct={canAct}
-            seat={p.colour}
-            safeSquares={display.rules.safeSquares}
-            presentation={presentation}
-            motionPaused={paused}
-          />
+          {board}
           {(stage === "turn" || intro) && (
             <div
               className="turn-announcement"
@@ -534,42 +694,7 @@ export function GameTable({
         <div
           className={`table-feedback ${active?.captured.length && stage === "resolve" ? "capture-feedback" : ""}`}
         >
-          {display.war ? (
-            <div
-              ref={noticeRegion}
-              className="war-notice"
-              onMouseEnter={() => setNoticeHover(true)}
-              onMouseLeave={() => setNoticeHover(false)}
-              onFocusCapture={() => setNoticeFocus(true)}
-              onBlurCapture={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget))
-                  setNoticeFocus(false);
-              }}
-            >
-              <p role="status" aria-live="polite">
-                <span className="notice-context">
-                  {feedback.view.current?.round
-                    ? `Round ${feedback.view.current.round} · match event`
-                    : "Match event"}
-                </span>
-                {feedback.view.current?.text ||
-                  "War: choose Battlefield Key for symbols, or Match Events to review the action."}
-              </p>
-              {feedback.view.current && (
-                <button
-                  className="text-button"
-                  onClick={feedback.queue.dismiss}
-                  aria-label="Dismiss match notification"
-                >
-                  {feedback.view.waiting
-                    ? `Next (${feedback.view.waiting}) →`
-                    : "Dismiss ×"}
-                </button>
-              )}
-            </div>
-          ) : (
-            presentation.message || display.events.at(-1)?.text
-          )}
+          {notice}
         </div>
       </section>
       <p className="sr-only" aria-live="polite" aria-atomic="true">
@@ -632,15 +757,15 @@ export function Results({
           onClick={onRematch}
         >
           {online && voted ? `Rematch requested · ${votes} ready` : "Rematch"}{" "}
-          <span>↗</span>
+          <Icon icon={RotateCcw} />
         </button>
         {online && host && (
           <button className="secondary" onClick={onLobby}>
-            Return to lobby
+            <Icon icon={Users} /> Return to lobby
           </button>
         )}
         <button className="ghost" onClick={onMenu}>
-          Return to main menu
+          <Icon icon={Menu} /> Return to main menu
         </button>
       </div>
       {online && (

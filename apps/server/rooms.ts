@@ -1,6 +1,6 @@
 import { useSkill, chooseSkill } from "../../packages/war/index";
 import { randomBytes, randomUUID, randomInt } from "node:crypto";
-import { WebSocket, WebSocketServer } from "ws";
+import type { WebSocket, WebSocketServer } from "ws";
 import { validate } from "../../packages/rules/index";
 import {
   colours,
@@ -26,7 +26,12 @@ type Member = {
   socket?: WebSocket;
   timer?: ReturnType<typeof setTimeout>;
 };
-type Options = { rollDice?: () => [number, number]; botDelay?: number };
+export type RoomSnapshot = { rooms: Room[]; members: { code: string; id: string; token: string }[] };
+type Options = {
+  rollDice?: () => [number, number]; botDelay?: number;
+  roomCode?: string; snapshot?: RoomSnapshot;
+  persist?: (snapshot: RoomSnapshot) => void;
+};
 export function attachRooms(wss: WebSocketServer, options: Options = {}) {
   const rooms = new Map<string, Room>(),
     members = new Map<string, Member>(),
@@ -36,7 +41,7 @@ export function attachRooms(wss: WebSocketServer, options: Options = {}) {
     options.rollDice ??
     (() => [randomInt(1, 7), randomInt(1, 7)] as [number, number]);
   const send = (ws: WebSocket, data: Reply) => {
-    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data));
+    if (ws.readyState === 1) ws.send(JSON.stringify(data));
   };
   function clearRoom(r: Room) {
     clearTimeout(botTimers.get(r));
@@ -44,6 +49,7 @@ export function attachRooms(wss: WebSocketServer, options: Options = {}) {
     botTimers.delete(r);
     turnTimers.delete(r);
     rooms.delete(r.code);
+    persist();
   }
   function setGame(r: Room, g: Game) {
     const old = r.game;
@@ -63,13 +69,17 @@ export function attachRooms(wss: WebSocketServer, options: Options = {}) {
           setGame(r, timeoutGame(r.game));
           publish(r);
         }, r.rules.timer * 1000);
-        t.unref();
+        t.unref?.();
         turnTimers.set(r, t);
       }
     }
   }
+  function persist() {
+    options.persist?.({ rooms: [...rooms.values()], members: [...members.values()].map(m => ({ code: m.room.code, id: m.id, token: m.token })) });
+  }
   function publish(r: Room) {
     r.revision++;
+    persist();
     for (const m of members.values())
       if (m.room === r && m.socket)
         send(m.socket, { type: "state", room: r, playerId: m.id });
@@ -102,7 +112,7 @@ export function attachRooms(wss: WebSocketServer, options: Options = {}) {
       setGame(r, next);
       publish(r);
     }, options.botDelay ?? 550);
-    timer.unref();
+    timer.unref?.();
     botTimers.set(r, timer);
   }
   function setup(r: Room, match = 1) {
@@ -145,6 +155,26 @@ export function attachRooms(wss: WebSocketServer, options: Options = {}) {
           connected: true,
         });
   }
+  for (const r of options.snapshot?.rooms ?? []) {
+    rooms.set(r.code, r);
+    r.players.forEach(p => { if (!p.computer) { p.connected = false; p.ready = false; } });
+  }
+  for (const saved of options.snapshot?.members ?? []) {
+    const room = rooms.get(saved.code);
+    if (!room) continue;
+    const m: Member = { room, id: saved.id, token: saved.token };
+    members.set(m.token, m);
+    m.timer = setTimeout(() => remove(m), 30_000);
+    m.timer.unref?.();
+  }
+  for (const r of rooms.values()) {
+    if (r.game && r.deadline) {
+      const timer = setTimeout(() => { if (r.game) { setGame(r, timeoutGame(r.game)); publish(r); } }, Math.max(0, r.deadline - Date.now()));
+      timer.unref?.();
+      turnTimers.set(r, timer);
+    }
+    publish(r);
+  }
   wss.on("connection", (ws) => {
     let current: Member | undefined;
     ws.on("message", (raw) => {
@@ -167,7 +197,8 @@ export function attachRooms(wss: WebSocketServer, options: Options = {}) {
             if (errors.length) return fail(errors.join(" "));
             let code;
             do {
-              code = randomBytes(4).toString("hex").slice(0, 6).toUpperCase();
+              code = options.roomCode ?? randomBytes(4).toString("hex").slice(0, 6).toUpperCase();
+              if (options.roomCode && rooms.has(code)) return fail("Table code is already in use. Please try again.");
             } while (rooms.has(code));
             room = {
               id: randomUUID(),
@@ -208,6 +239,7 @@ export function attachRooms(wss: WebSocketServer, options: Options = {}) {
             connected: true,
           });
           if (!room.hostId) room.hostId = id;
+          persist();
           send(ws, { type: "state", room, playerId: id, token });
           publish(room);
           return;
@@ -350,7 +382,7 @@ export function attachRooms(wss: WebSocketServer, options: Options = {}) {
       }
       publish(m.room);
       m.timer = setTimeout(() => remove(m), 30_000);
-      m.timer.unref();
+      m.timer.unref?.();
     });
   });
   return {

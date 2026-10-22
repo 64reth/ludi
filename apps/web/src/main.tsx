@@ -1,3 +1,32 @@
+import {
+  Icon,
+  SelectedIcon,
+  Zap,
+  Menu,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUpRight,
+  Settings,
+  X,
+  Volume2,
+  VolumeX,
+  BookOpen,
+  Users,
+  Wifi,
+  WifiOff,
+  Plus,
+  LogIn,
+  LogOut,
+  Check,
+  Copy,
+  CircleCheck,
+  Clock,
+  Bot,
+  UserRound,
+  TriangleAlert,
+  Play,
+  RotateCcw,
+} from "./icons";
 import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Board } from "./Board";
@@ -18,6 +47,8 @@ import {
 } from "../../../packages/rules/index";
 import { colours } from "../../../packages/shared/index";
 import "./style.css";
+import "./mobile-game.css";
+import "./icons.css";
 const inspectorEnabled =
   import.meta.env.DEV && import.meta.env.VITE_ENABLE_INSPECTOR === "true";
 const Inspector = inspectorEnabled
@@ -341,7 +372,9 @@ function App() {
   const soundControl = (
     <label className="setting-row">
       <span>
-        <strong>Game sound</strong>
+        <strong>
+          <Icon icon={muted ? VolumeX : Volume2} /> Game sound
+        </strong>
         <small>Dice, landing, captures and home.</small>
       </span>
       <input
@@ -371,7 +404,9 @@ function App() {
     </label>
   );
   return (
-    <div className="game-shell">
+    <div
+      className={`game-shell ${screen === "table" || screen === "pause" ? "gameplay-shell" : ""}`}
+    >
       <header className="topbar" inert={!!confirm || screen === "pause"}>
         <button
           className="brand"
@@ -385,7 +420,10 @@ function App() {
         </button>
         <div className="topbar-title">
           <span className="live-mark" />
-          {heading[screen]}
+          <span className="desktop-mode-title">{heading[screen]}</span>
+          <span className="mobile-mode-title">
+            {game?.war ? "War" : "Heritage"}
+          </span>
         </div>
         <div className="topbar-actions">
           {room &&
@@ -400,7 +438,8 @@ function App() {
             )}
           {screen !== "menu" && (
             <button className="ghost" onClick={onBack}>
-              {screen === "table" ? "☰ Menu" : "← Back"}
+              <Icon icon={screen === "table" ? Menu : ArrowLeft} />{" "}
+              {screen === "table" ? "Menu" : "Back"}
             </button>
           )}
           {screen === "menu" && (
@@ -409,7 +448,7 @@ function App() {
               aria-label="Settings"
               onClick={openSettings}
             >
-              ⚙
+              <Icon icon={Settings} />
             </button>
           )}
           {inspectorEnabled && (
@@ -421,9 +460,11 @@ function App() {
       </header>
       {error && (
         <div className="error-toast" role="alert">
-          <span>{error}</span>
+          <span>
+            <Icon icon={TriangleAlert} /> {error}
+          </span>
           <button aria-label="Dismiss error" onClick={() => setError("")}>
-            ×
+            <Icon icon={X} />
           </button>
         </div>
       )}
@@ -461,13 +502,14 @@ function App() {
                   }
                 >
                   {room || local.game ? "Return to table" : "Play"}{" "}
-                  <span>↗</span>
+                  <Icon icon={ArrowUpRight} />
                 </button>
                 <button className="secondary" onClick={openRules}>
-                  Match rules <span>→</span>
+                  <Icon icon={BookOpen} /> Match rules{" "}
+                  <Icon icon={ArrowRight} />
                 </button>
                 <button className="ghost" onClick={openSettings}>
-                  Settings
+                  <Icon icon={Settings} /> Settings
                 </button>
               </div>
               <div className="menu-preset">
@@ -507,7 +549,11 @@ function App() {
                   }
                   onClick={() => setRules({ ...rules, mode })}
                 >
-                  {mode === "war" ? "War" : "Heritage"}
+                  <Icon icon={mode === "war" ? Zap : BookOpen} />{" "}
+                  {mode === "war" ? "War" : "Heritage"}{" "}
+                  <SelectedIcon
+                    selected={(rules.mode || "heritage") === mode}
+                  />
                 </button>
               ))}
               <p>
@@ -523,7 +569,7 @@ function App() {
                 <p>You and the computer.</p>
                 <span className="pill">1 human · 1–3 computers</span>
                 <button className="secondary" onClick={() => openLocal("solo")}>
-                  Play solo →
+                  <Icon icon={UserRound} /> Play solo <Icon icon={ArrowRight} />
                 </button>
               </article>
               <article className="mode-card">
@@ -535,7 +581,7 @@ function App() {
                   className="secondary"
                   onClick={() => openLocal("local")}
                 >
-                  Play local →
+                  <Icon icon={Users} /> Play local <Icon icon={ArrowRight} />
                 </button>
               </article>
               <article className="mode-card online-card">
@@ -549,7 +595,9 @@ function App() {
                     go(room ? (room.started ? "table" : "lobby") : "online")
                   }
                 >
-                  {room ? "Return to table" : "Find your table"} <span>→</span>
+                  <Icon icon={Wifi} />{" "}
+                  {room ? "Return to table" : "Find your table"}{" "}
+                  <Icon icon={ArrowRight} />
                 </button>
               </article>
             </div>
@@ -570,10 +618,14 @@ function App() {
                   go(room ? (room.started ? "table" : "lobby") : "create")
                 }
               >
-                <span className="mode-number">＋</span>
+                <span className="mode-number">
+                  <Icon icon={Plus} size={26} />
+                </span>
                 <h2>{room ? "Your table" : "Create table"}</h2>
                 <p>Choose the rules. Save a seat.</p>
-                <span className="arrow">↗</span>
+                <span className="arrow">
+                  <Icon icon={ArrowUpRight} />
+                </span>
               </button>
               <button
                 className="join-choice"
@@ -581,13 +633,18 @@ function App() {
                   go(room ? (room.started ? "table" : "lobby") : "join")
                 }
               >
-                <span className="mode-number">↪</span>
+                <span className="mode-number">
+                  <Icon icon={LogIn} size={26} />
+                </span>
                 <h2>Join table</h2>
                 <p>Your people have the code.</p>
-                <span className="arrow">↗</span>
+                <span className="arrow">
+                  <Icon icon={ArrowUpRight} />
+                </span>
               </button>
             </div>
             <p className="connection-note">
+              <Icon icon={connected ? Wifi : WifiOff} />{" "}
               {connected
                 ? "Ready to connect your table."
                 : "Connecting to tables…"}
@@ -600,7 +657,7 @@ function App() {
                 LUDI / {rules.mode === "war" ? "WAR" : "HERITAGE"}
               </span>
               <div className="entry-glyph">
-                {screen === "create" ? "＋" : "↪"}
+                <Icon icon={screen === "create" ? Plus : LogIn} size={40} />
               </div>
               <h2>
                 {screen === "create" ? "Set the table." : "You’re invited."}
@@ -670,7 +727,8 @@ function App() {
                       className="text-button"
                       onClick={openRules}
                     >
-                      Change rules →
+                      <Icon icon={BookOpen} /> Change rules{" "}
+                      <Icon icon={ArrowRight} />
                     </button>
                   </div>
                 )}
@@ -683,12 +741,12 @@ function App() {
                   }
                 >
                   {screen === "create" ? "Create private table" : "Join table"}{" "}
-                  <span>→</span>
+                  <Icon icon={ArrowRight} />
                 </button>
               </form>
               {!connected && (
                 <p className="connection-note" role="status">
-                  Connecting to tables…
+                  <Icon icon={WifiOff} /> Connecting to tables…
                 </p>
               )}
               {screen === "create" && rules.visibility === "public" && (
@@ -748,6 +806,7 @@ function App() {
                     }
                   }}
                 >
+                  <Icon icon={copied ? Check : Copy} />{" "}
                   {copied ? "Copied" : "Copy code"}
                 </button>
               </div>
@@ -771,6 +830,10 @@ function App() {
                             {p?.id === playerId && <small> · You</small>}
                           </h2>
                           <p>
+                            <Icon
+                              icon={p?.computer ? Bot : UserRound}
+                              size={14}
+                            />{" "}
                             {p
                               ? p.computer
                                 ? "Computer seat"
@@ -783,10 +846,20 @@ function App() {
                         <span
                           className={`ready-state ${p?.ready ? "is-ready" : ""}`}
                         >
+                          <Icon
+                            icon={
+                              p?.ready
+                                ? CircleCheck
+                                : p && !p.connected
+                                  ? WifiOff
+                                  : Clock
+                            }
+                            size={14}
+                          />{" "}
                           {p
                             ? p.connected
                               ? p.ready
-                                ? "✓ Ready"
+                                ? "Ready"
                                 : "Not ready"
                               : "Rejoining…"
                             : "Waiting"}
@@ -807,7 +880,7 @@ function App() {
                 <div className="lobby-bottom">
                   {room.started ? (
                     <button className="primary" onClick={() => go("table")}>
-                      Return to game table →
+                      Return to game table <Icon icon={ArrowRight} />
                     </button>
                   ) : (
                     <>
@@ -818,7 +891,8 @@ function App() {
                           send({ type: "ready", ready: !me?.ready })
                         }
                       >
-                        {me?.ready ? "✓ Ready · change" : "Ready up"}
+                        <Icon icon={me?.ready ? CircleCheck : Check} />{" "}
+                        {me?.ready ? "Ready · change" : "Ready up"}
                       </button>
                       {host && (
                         <button
@@ -830,13 +904,14 @@ function App() {
                           }
                           onClick={() => send({ type: "start" })}
                         >
-                          Start session <span>→</span>
+                          <Icon icon={Play} /> Start session{" "}
+                          <Icon icon={ArrowRight} />
                         </button>
                       )}
                     </>
                   )}
                   <button className="ghost" onClick={() => setConfirm("leave")}>
-                    Leave table
+                    <Icon icon={LogOut} /> Leave table
                   </button>
                 </div>
               </div>
@@ -861,7 +936,7 @@ function App() {
                   {host && !room.started
                     ? "Edit match rules"
                     : "View match rules"}{" "}
-                  →
+                  <Icon icon={ArrowRight} />
                 </button>
                 <p className="subtle">
                   {room.started
@@ -972,7 +1047,7 @@ function App() {
                     className="primary"
                     onClick={() => go("table")}
                   >
-                    Resume →
+                    <Icon icon={Play} /> Resume <Icon icon={ArrowRight} />
                   </button>
                   {soundControl}
                   {paceControl}
@@ -984,11 +1059,11 @@ function App() {
                         go("table");
                       }}
                     >
-                      Replay War introduction
+                      <Icon icon={RotateCcw} /> Replay War introduction
                     </button>
                   )}
                   <button className="secondary" onClick={openRules}>
-                    View match rules
+                    <Icon icon={BookOpen} /> View match rules
                   </button>
                   {!local.game && (
                     <p className="subtle">
@@ -999,7 +1074,7 @@ function App() {
                     className="ghost danger"
                     onClick={() => setConfirm("leave")}
                   >
-                    Leave table
+                    <Icon icon={LogOut} /> Leave table
                   </button>
                 </section>
               </div>
@@ -1039,14 +1114,14 @@ function App() {
               className="primary"
               onClick={() => go(settingsBack.current)}
             >
-              Done →
+              <Icon icon={Check} /> Done <Icon icon={ArrowRight} />
             </button>
           </section>
         ) : (
           <section className="empty-state">
             <h1>Your table has closed.</h1>
             <button className="primary" onClick={() => go("online")}>
-              Find a table →
+              <Icon icon={Wifi} /> Find a table <Icon icon={ArrowRight} />
             </button>
           </section>
         )}
@@ -1064,6 +1139,7 @@ function App() {
             }
           >
             <h2>
+              <Icon icon={TriangleAlert} />{" "}
               {confirm === "leave"
                 ? "Leave this table?"
                 : "Discard rule changes?"}
@@ -1079,6 +1155,7 @@ function App() {
                 autoFocus
                 onClick={() => setConfirm(null)}
               >
+                <Icon icon={X} />{" "}
                 {confirm === "leave" ? "Stay at table" : "Keep editing"}
               </button>
               <button
@@ -1091,6 +1168,7 @@ function App() {
                   }
                 }}
               >
+                <Icon icon={confirm === "leave" ? LogOut : RotateCcw} />{" "}
                 {confirm === "leave" ? "Leave table" : "Discard changes"}
               </button>
             </div>

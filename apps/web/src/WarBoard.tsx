@@ -4,7 +4,7 @@ import {
   playerLabel,
 } from "../../../packages/game-engine/events";
 import { tokensFor, pointFor } from "../../../packages/board/layout";
-import { type Game } from "../../../packages/game-engine/index";
+import { cellId, type Game } from "../../../packages/game-engine/index";
 import {
   effect,
   hazardName,
@@ -14,17 +14,56 @@ export function WarBoard({
   game,
   preview,
   terrain = false,
+  actions,
   onExplain,
 }: {
   game: Game;
   preview?: SkillAction;
   terrain?: boolean;
+  actions?: SkillAction[];
   onExplain?: (text: string) => void;
 }) {
   const w = game.war;
   if (!w) return null;
   return (
     <g className="war-board" pointerEvents="none">
+      {terrain &&
+        [
+          ...new Set(
+            actions?.flatMap((action) => [
+              ...action.targets.map((ref) => {
+                const owner = game.players.find((p) => p.id === ref.owner)!;
+                return cellId(owner.colour, owner.pieces[ref.piece]);
+              }),
+              ...(action.to !== undefined && action.source
+                ? [
+                    cellId(
+                      game.players.find((p) => p.id === action.source!.owner)!
+                        .colour,
+                      action.to,
+                    ),
+                  ]
+                : []),
+            ]),
+          ),
+        ].map((cell) => {
+          const point = pointFor(cell);
+          return (
+            <rect
+              key={cell}
+              className="skill-reachable-square"
+              x={point.x - 0.46}
+              y={point.y - 0.46}
+              width=".92"
+              height=".92"
+              rx=".08"
+              fill="#fff0a8"
+              fillOpacity=".32"
+              stroke="#fff4ac"
+              strokeWidth=".07"
+            />
+          );
+        })}
       {terrain &&
         [
           ...w.active.map((h) => ({ ...h, incoming: false })),

@@ -1,3 +1,4 @@
+import { Icon, X } from "./icons";
 import { BoardHint } from "./BoardHint";
 import { WarBoard } from "./WarBoard";
 import type { SkillAction, Ref } from "../../../packages/war/index";
@@ -18,6 +19,7 @@ const colours = ["#bd3831", "#28754b", "#e7b62b", "#27759c"];
 const names = ["Red", "Green", "Gold", "Blue"];
 type Props = {
   skillPreview?: SkillAction;
+  skillActions?: SkillAction[];
   skillCandidates?: Ref[];
   onSkillPiece?: (r: Ref) => void;
   inspector?: boolean;
@@ -37,6 +39,7 @@ type Props = {
 };
 export function Board({
   skillPreview,
+  skillActions,
   skillCandidates,
   onSkillPiece,
   inspector = false,
@@ -75,7 +78,7 @@ export function Board({
         ref={svg}
         viewBox="-0.75 -0.75 16.5 16.5"
         role="group"
-        aria-label="Heritage Ludi board, fixed orientation"
+        aria-label={`${game?.war ? "War" : "Heritage"} Ludi board, fixed orientation`}
       >
         <defs>
           <filter
@@ -285,7 +288,14 @@ export function Board({
           fill={`url(#${id}grain)`}
           pointerEvents="none"
         />
-        {game?.war && <WarBoard game={game} terrain onExplain={explain} />}
+        {game?.war && (
+          <WarBoard
+            game={game}
+            terrain
+            actions={skillActions}
+            onExplain={explain}
+          />
+        )}
         <BoardPieces
           prefix={id}
           skillCandidates={skillCandidates}
@@ -328,7 +338,7 @@ export function Board({
             onClick={() => explain("")}
             aria-label="Close symbol explanation"
           >
-            ×
+            <Icon icon={X} />
           </button>
         </div>
       )}

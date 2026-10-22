@@ -1,0 +1,194 @@
+[
+  {
+    "mode": "Heritage",
+    "width": 375,
+    "height": 667,
+    "phase": "before-roll",
+    "board": 360,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "Heritage",
+    "width": 375,
+    "height": 667,
+    "phase": "after-roll",
+    "board": 360,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "Heritage",
+    "width": 390,
+    "height": 844,
+    "phase": "before-roll",
+    "board": 374,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "Heritage",
+    "width": 390,
+    "height": 844,
+    "phase": "after-roll",
+    "board": 374,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "Heritage",
+    "width": 393,
+    "height": 852,
+    "phase": "before-roll",
+    "board": 377,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "Heritage",
+    "width": 393,
+    "height": 852,
+    "phase": "after-roll",
+    "board": 377,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "Heritage",
+    "width": 430,
+    "height": 932,
+    "phase": "before-roll",
+    "board": 413,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "Heritage",
+    "width": 430,
+    "height": 932,
+    "phase": "after-roll",
+    "board": 413,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "Heritage",
+    "width": 844,
+    "height": 390,
+    "phase": "before-roll",
+    "board": 312,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "Heritage",
+    "width": 844,
+    "height": 390,
+    "phase": "after-roll",
+    "board": 312,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "Heritage",
+    "width": 667,
+    "height": 375,
+    "phase": "before-roll",
+    "board": 297,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "Heritage",
+    "width": 667,
+    "height": 375,
+    "phase": "after-roll",
+    "board": 297,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "War",
+    "width": 375,
+    "height": 667,
+    "phase": "before-roll",
+    "board": 360,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "War",
+    "width": 375,
+    "height": 667,
+    "phase": "after-roll",
+    "board": 360,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "War",
+    "width": 390,
+    "height": 844,
+    "phase": "before-roll",
+    "board": 374,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "War",
+    "width": 390,
+    "height": 844,
+    "phase": "after-roll",
+    "board": 374,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "War",
+    "width": 393,
+    "height": 852,
+    "phase": "before-roll",
+    "board": 377,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "War",
+    "width": 393,
+    "height": 852,
+    "phase": "after-roll",
+    "board": 377,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "War",
+    "width": 430,
+    "height": 932,
+    "phase": "before-roll",
+    "board": 413,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "War",
+    "width": 430,
+    "height": 932,
+    "phase": "after-roll",
+    "board": 413,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "War",
+    "width": 844,
+    "height": 390,
+    "phase": "before-roll",
+    "board": 312,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "War",
+    "width": 844,
+    "height": 390,
+    "phase": "after-roll",
+    "board": 312,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "War",
+    "width": 667,
+    "height": 375,
+    "phase": "before-roll",
+    "board": 297,
+    "verticalScroll": 0
+  },
+  {
+    "mode": "War",
+    "width": 667,
+    "height": 375,
+    "phase": "after-roll",
+    "board": 297,
+    "verticalScroll": 0
+  }
+]

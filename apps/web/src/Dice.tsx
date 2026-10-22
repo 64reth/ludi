@@ -1,3 +1,4 @@
+import { Icon, Dices, Volume2, VolumeX } from "./icons";
 const positions = [
   [1, 1],
   [3, 1],
@@ -43,6 +44,7 @@ export function Dice({
           aria-label={muted ? "Unmute game sound" : "Mute game sound"}
           onClick={onMute}
         >
+          <Icon icon={muted ? VolumeX : Volume2} />{" "}
           {muted ? "Sound off" : "Sound on"}
         </button>
       </div>
@@ -84,8 +86,7 @@ export function Dice({
         disabled={disabled || rolling}
         onClick={onRoll}
       >
-        {rolling ? "Rolling…" : label}
-        <span aria-hidden="true">↗</span>
+        <Icon icon={Dices} /> {rolling ? "Rolling…" : label}
       </button>
     </section>
   );

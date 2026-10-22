@@ -1,3 +1,4 @@
+import { Icon, ArrowRight, BookOpen, Play, TriangleAlert } from "./icons";
 import {
   presetNames,
   validate,
@@ -137,7 +138,8 @@ export function LocalSetup({
             {rules.timer ? `${rules.timer}s turns` : "No timer"}
           </p>
           <button className="secondary" onClick={onChangeRules}>
-            Choose match rules →
+            <Icon icon={BookOpen} /> Choose match rules{" "}
+            <Icon icon={ArrowRight} />
           </button>
           {mode === "local" && (
             <p className="subtle">
@@ -147,7 +149,7 @@ export function LocalSetup({
           )}
           {errors.length > 0 && (
             <div className="validation" role="alert">
-              {errors.join(" ")}
+              <Icon icon={TriangleAlert} /> {errors.join(" ")}
             </div>
           )}
           <button
@@ -171,7 +173,7 @@ export function LocalSetup({
               )
             }
           >
-            Start match <span>→</span>
+            <Icon icon={Play} /> Start match <Icon icon={ArrowRight} />
           </button>
         </aside>
       </div>
