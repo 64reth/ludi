@@ -98,13 +98,7 @@ function App() {
     [inspection, setInspection] = useState(""),
     [stack, setStack] = useState(false),
     [boardKey, setBoardKey] = useState(0);
-  const [onlineEnabled, setOnlineEnabled] = useState(() => {
-    try {
-      return !!sessionStorage.getItem("ludi.room");
-    } catch {
-      return false;
-    }
-  });
+  const [onlineEnabled, setOnlineEnabled] = useState(false);
   const [setupMode, setSetupMode] = useState<"solo" | "local">("local");
   const [setupRules, setSetupRules] = useState<Rules>(rules);
   const [setupNames, setSetupNames] = useState([
@@ -458,6 +452,16 @@ function App() {
           )}
         </div>
       </header>
+      {lobby.savedSession && !onlineEnabled && (
+        <div className="session-status"><button className="secondary" onClick={() => { setOnlineEnabled(true); lobby.retry(); }}>Resume Game</button></div>
+      )}
+      {onlineEnabled && (room || lobby.savedSession) && (
+        <div className="session-status" role="status" aria-live="polite">
+          <Icon icon={connected ? Wifi : WifiOff} />
+          <span>{connected ? lobby.status : `${lobby.status}. Your place is saved. The board may be out of date.`}</span>
+          {!connected && <><button onClick={lobby.retry}>Retry</button><button onClick={() => send({type: "leave"})}>Return to Lobby</button></>}
+        </div>
+      )}
       {error && (
         <div className="error-toast" role="alert">
           <span>
@@ -643,9 +647,10 @@ function App() {
                 </span>
               </button>
             </div>
+            {lobby.savedSession && <button className="secondary" onClick={() => { setOnlineEnabled(true); lobby.retry(); }}>Resume Game</button>}
             <p className="connection-note">
-              <Icon icon={connected ? Wifi : WifiOff} />{" "}
-              {connected
+              <Icon icon={lobby.ready ? Wifi : WifiOff} />{" "}
+              {lobby.ready
                 ? "Ready to connect your table."
                 : "Connecting to tables…"}
             </p>
@@ -735,7 +740,7 @@ function App() {
                 <button
                   className="primary"
                   disabled={
-                    !connected ||
+                    !lobby.ready ||
                     !!room ||
                     (screen === "create" && validate(rules).length > 0)
                   }
@@ -744,7 +749,7 @@ function App() {
                   <Icon icon={ArrowRight} />
                 </button>
               </form>
-              {!connected && (
+              {!lobby.ready && (
                 <p className="connection-note" role="status">
                   <Icon icon={WifiOff} /> Connecting to tables…
                 </p>

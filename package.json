@@ -11,7 +11,8 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "cf:types": "wrangler types",
     "deploy": "npm run build && wrangler deploy",
-    "cf:dev": "wrangler dev"
+    "cf:dev": "wrangler dev",
+    "test:recovery": "node --import tsx tests/recovery-runtime.ts"
   },
   "dependencies": {
     "lucide-react": "^1.61.0",

@@ -621,6 +621,7 @@ body:has(.mobile-sheet[open]) .screen-pause {
   (max-width: 950px) and (max-height: 500px) and (orientation: landscape) {
   .gameplay-shell {
     grid-template-rows: 48px minmax(0, 1fr);
+    --topbar-height: 48px;
     background: radial-gradient(ellipse at 50% 30%, #174b34, #082c23 80%);
   }
   .gameplay-shell .topbar {
@@ -675,6 +676,7 @@ body:has(.mobile-sheet[open]) .screen-pause {
   }
   .gameplay-shell {
     grid-template-rows: 40px minmax(0, 1fr);
+    --topbar-height: 40px;
   }
   .gameplay-shell .topbar {
     height: 40px;

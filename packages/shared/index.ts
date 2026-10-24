@@ -20,10 +20,12 @@ export type Room = {
   game?: Game;
   deadline?: number;
   rematchReady?: string[];
+  expiresAt?: number;
 };
 export type Command =
-  | { type: "create"; name: string; rules: Rules }
-  | { type: "join"; name: string; code: string }
+  | { type: "ping" }
+  | { type: "create"; name: string; rules: Rules; operationId?: string }
+  | { type: "join"; name: string; code: string; operationId?: string }
   | { type: "resume"; code: string; token: string }
   | { type: "ready"; ready: boolean }
   | { type: "rules"; rules: Rules }
@@ -36,6 +38,7 @@ export type Command =
   | { type: "rematch" }
   | { type: "lobby" };
 export type Reply =
+  | { type: "pong" }
   | { type: "state"; room: Room; playerId: string; token?: string }
-  | { type: "error"; message: string }
+  | { type: "error"; message: string; reason?: "unavailable" | "credentials" | "occupied" }
   | { type: "left" };

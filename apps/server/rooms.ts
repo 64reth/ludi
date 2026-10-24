@@ -23,16 +23,22 @@ type Member = {
   room: Room;
   id: string;
   token: string;
+  operationId?: string;
   socket?: WebSocket;
   timer?: ReturnType<typeof setTimeout>;
 };
-export type RoomSnapshot = { rooms: Room[]; members: { code: string; id: string; token: string }[] };
+export type RoomSnapshot = { retiredOperations?: string[]; rooms: Room[]; members: { code: string; id: string; token: string; operationId?: string }[] };
 type Options = {
   rollDice?: () => [number, number]; botDelay?: number;
   roomCode?: string; snapshot?: RoomSnapshot;
   persist?: (snapshot: RoomSnapshot) => void;
+  recoveryMs?: number;
 };
 export function attachRooms(wss: WebSocketServer, options: Options = {}) {
+  const retiredOperations = new Set(options.snapshot?.retiredOperations ?? []);
+  function retire(operationId?: string) {
+    if (operationId) retiredOperations.add(operationId);
+  }
   const rooms = new Map<string, Room>(),
     members = new Map<string, Member>(),
     botTimers = new Map<Room, ReturnType<typeof setTimeout>>(),
@@ -49,6 +55,7 @@ export function attachRooms(wss: WebSocketServer, options: Options = {}) {
     botTimers.delete(r);
     turnTimers.delete(r);
     rooms.delete(r.code);
+    for (const [token, m] of members) if (m.room === r) { clearTimeout(m.timer); retire(m.operationId); members.delete(token); }
     persist();
   }
   function setGame(r: Room, g: Game) {
@@ -75,7 +82,7 @@ export function attachRooms(wss: WebSocketServer, options: Options = {}) {
     }
   }
   function persist() {
-    options.persist?.({ rooms: [...rooms.values()], members: [...members.values()].map(m => ({ code: m.room.code, id: m.id, token: m.token })) });
+    options.persist?.({ retiredOperations: [...retiredOperations], rooms: [...rooms.values()], members: [...members.values()].map(m => ({ code: m.room.code, id: m.id, token: m.token, operationId: m.operationId })) });
   }
   function publish(r: Room) {
     r.revision++;
@@ -130,6 +137,7 @@ export function attachRooms(wss: WebSocketServer, options: Options = {}) {
   }
   function remove(m: Member) {
     clearTimeout(m.timer);
+    retire(m.operationId);
     members.delete(m.token);
     const r = m.room;
     if (r.game) setGame(r, forfeitGame(r.game, m.id));
@@ -140,6 +148,7 @@ export function attachRooms(wss: WebSocketServer, options: Options = {}) {
       return;
     }
     if (r.hostId === m.id) r.hostId = humans[0].id;
+    reserve(r);
     publish(r);
   }
   function syncBots(r: Room) {
@@ -155,18 +164,31 @@ export function attachRooms(wss: WebSocketServer, options: Options = {}) {
           connected: true,
         });
   }
+  const recoveryMs = options.recoveryMs ?? 30 * 60_000;
+  function expire() {
+    for (const r of rooms.values())
+      if (r.expiresAt && r.expiresAt <= Date.now() && !r.players.some(p => !p.computer && p.connected)) clearRoom(r);
+  }
+  function reserve(r: Room) {
+    if (r.players.some(p => !p.computer && p.connected)) { delete r.expiresAt; return; }
+    r.expiresAt ??= Date.now() + recoveryMs;
+    const timer = setTimeout(expire, Math.max(1, r.expiresAt - Date.now()));
+    timer.unref?.();
+    const m = [...members.values()].find(m => m.room === r);
+    if (m) { clearTimeout(m.timer); m.timer = timer; }
+  }
   for (const r of options.snapshot?.rooms ?? []) {
     rooms.set(r.code, r);
-    r.players.forEach(p => { if (!p.computer) { p.connected = false; p.ready = false; } });
+    r.players.forEach(p => { if (!p.computer) p.connected = false; });
   }
   for (const saved of options.snapshot?.members ?? []) {
     const room = rooms.get(saved.code);
     if (!room) continue;
-    const m: Member = { room, id: saved.id, token: saved.token };
+    const m: Member = { room, id: saved.id, token: saved.token, operationId: saved.operationId };
     members.set(m.token, m);
-    m.timer = setTimeout(() => remove(m), 30_000);
-    m.timer.unref?.();
   }
+  for (const r of rooms.values()) reserve(r);
+  expire();
   for (const r of rooms.values()) {
     if (r.game && r.deadline) {
       const timer = setTimeout(() => { if (r.game) { setGame(r, timeoutGame(r.game)); publish(r); } }, Math.max(0, r.deadline - Date.now()));
@@ -178,11 +200,30 @@ export function attachRooms(wss: WebSocketServer, options: Options = {}) {
   wss.on("connection", (ws) => {
     let current: Member | undefined;
     ws.on("message", (raw) => {
-      const fail = (message: string) => send(ws, { type: "error", message });
+      const fail = (message: string, reason?: "unavailable" | "credentials" | "occupied") => send(ws, { type: "error", message, reason });
       try {
         const c = JSON.parse(raw.toString()) as Command;
         if (!c || typeof c !== "object") return fail("Invalid command.");
+        if (c.type === "ping") { send(ws, {type: "pong"}); return; }
+        expire();
         if (c.type === "create" || c.type === "join") {
+          if (c.operationId !== undefined && !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(c.operationId)) return fail("Unable to join. Try again.");
+          if (c.operationId && retiredOperations.has(c.operationId)) return fail("This game is no longer available. You can start or join another game.", "unavailable");
+          const previous = c.operationId && [...members.values()].find(m => m.operationId === c.operationId);
+          if (previous) {
+            if (current && current !== previous) return fail("Leave your current table first.");
+            if (c.type === "join" && previous.room.code !== c.code.toUpperCase()) return fail("Unable to join. Check the room code.");
+            if (previous.socket && previous.socket !== ws && previous.socket.readyState === 1) previous.socket.close(4001, "Session restored elsewhere");
+            current = previous;
+            previous.socket = ws;
+            clearTimeout(previous.timer);
+            delete previous.room.expiresAt;
+            previous.room.players.find(p => p.id === previous.id)!.connected = true;
+            persist();
+            send(ws, { type: "state", room: previous.room, playerId: previous.id, token: previous.token });
+            publish(previous.room);
+            return;
+          }
           if (current) return fail("Leave your current table first.");
           if (
             typeof c.name !== "string" ||
@@ -215,7 +256,7 @@ export function attachRooms(wss: WebSocketServer, options: Options = {}) {
           } else {
             if (typeof c.code !== "string") return fail("Invalid room code.");
             room = rooms.get(c.code.toUpperCase());
-            if (!room) return fail("Table not found.");
+            if (!room) return fail("This game is no longer available. You can start or join another game.", "unavailable");
             if (room.started) return fail("This match has already started.");
             const i = colours.findIndex(
               (col, i) =>
@@ -228,7 +269,8 @@ export function attachRooms(wss: WebSocketServer, options: Options = {}) {
           }
           const id = randomUUID(),
             token = randomBytes(24).toString("hex");
-          current = { room, id, token, socket: ws };
+          current = { room, id, token, operationId: c.operationId, socket: ws };
+          delete room.expiresAt;
           members.set(token, current);
           room.players.push({
             id,
@@ -247,12 +289,17 @@ export function attachRooms(wss: WebSocketServer, options: Options = {}) {
         if (c.type === "resume") {
           if (current) return fail("Already connected to a table.");
           const m = members.get(c.token);
-          if (!m || m.room.code !== c.code || m.socket)
-            return fail("Session cannot be resumed.");
+          if (!rooms.has(c.code)) return fail("This game is no longer available. You can start or join another game.", "unavailable");
+          if (!m || m.room.code !== c.code)
+            return fail("We couldn't restore your player seat. Check this browser's saved game or return to the lobby.", "credentials");
+          // Valid credentials transfer ownership; old socket callbacks cannot affect the new session.
+          if (m.socket && m.socket !== ws && m.socket.readyState === 1) m.socket.close(4001, "Session restored elsewhere");
           current = m;
           clearTimeout(m.timer);
           m.socket = ws;
+          delete m.room.expiresAt;
           m.room.players.find((p) => p.id === m.id)!.connected = true;
+          persist();
           send(ws, {
             type: "state",
             room: m.room,
@@ -263,6 +310,7 @@ export function attachRooms(wss: WebSocketServer, options: Options = {}) {
           return;
         }
         if (!current) return fail("Join a table first.");
+        if (current.socket !== ws) return fail("Your player seat is connected in another session.", "occupied");
         const r = current.room;
         if (c.type === "leave") {
           remove(current);
@@ -367,26 +415,27 @@ export function attachRooms(wss: WebSocketServer, options: Options = {}) {
         } else return fail("Unknown command.");
         publish(r);
       } catch (e) {
-        fail(e instanceof Error ? e.message : "Invalid message.");
+        fail(e instanceof Error && !(e instanceof TypeError) && !(e instanceof SyntaxError) ? e.message : "We couldn’t process that request. Please try again.");
       }
     });
     ws.on("error", () => {});
     ws.on("close", () => {
-      if (!current) return;
+      if (!current || current.socket !== ws || !rooms.has(current.room.code)) return;
       const m = current;
       m.socket = undefined;
       const p = m.room.players.find((p) => p.id === m.id);
       if (p) {
         p.connected = false;
-        p.ready = false;
+        if (!m.room.started) p.ready = false;
       }
       publish(m.room);
-      m.timer = setTimeout(() => remove(m), 30_000);
-      m.timer.unref?.();
+      reserve(m.room);
+      persist();
     });
   });
   return {
     rooms,
+    expire,
     close() {
       for (const m of members.values()) clearTimeout(m.timer);
       for (const t of botTimers.values()) clearTimeout(t);

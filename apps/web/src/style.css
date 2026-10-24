@@ -150,6 +150,7 @@ fieldset {
   height: 100dvh;
   display: grid;
   grid-template-rows: 68px minmax(0, 1fr);
+    --topbar-height: 68px;
   background:
     radial-gradient(ellipse at 65% 45%, #285b3a 0, transparent 65%), #123e2d;
   padding: env(safe-area-inset-top) env(safe-area-inset-right)
@@ -1323,6 +1324,7 @@ svg g[role="button"]:focus-visible > rect {
 @media (max-width: 650px) {
   .game-shell {
     grid-template-rows: 58px minmax(0, 1fr);
+    --topbar-height: 58px;
   }
   .topbar {
     padding: 0 14px;
@@ -1991,6 +1993,7 @@ svg g[role="button"]:focus-visible > rect {
 @media (max-height: 700px) and (min-width: 651px) {
   .game-shell {
     grid-template-rows: 56px minmax(0, 1fr);
+    --topbar-height: 56px;
   }
   .screen {
     padding: 14px 20px;
@@ -2162,6 +2165,7 @@ svg g[role="button"]:focus-visible > rect {
   }
   .game-shell {
     grid-template-rows: 48px minmax(0, 1fr);
+    --topbar-height: 48px;
   }
   .menu-layout {
     display: grid;
@@ -4822,3 +4826,8 @@ svg g[role="button"]:focus-visible > rect {
 }
 
 .turn-order .prepared-summary { display: block; white-space: normal; font-size: 0.72rem; line-height: 1.35; }
+
+.session-status { display: flex; align-items: center; justify-content: center; gap: .5rem; flex-wrap: wrap; padding: .45rem .75rem; background: #153e32; color: #f4edd8; font-size: .8rem; }
+.session-status button { font: inherit; padding: .35rem .6rem; }
+
+.game-shell:has(> .session-status) { grid-template-rows: var(--topbar-height, 68px) auto minmax(0, 1fr); }

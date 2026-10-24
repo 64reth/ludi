@@ -35,14 +35,14 @@ async function client() {
 }
 try {
   const health = await fetch(base + '/api/health');
-  assert.equal(health.status, 200); assert.equal(((await health.json()) as { build: string }).build, '004A');
+  assert.equal(health.status, 200); assert.equal(((await health.json()) as { build: string }).build, '004B');
   const html = await (await fetch(base)).text();
   assert.match(html, /<div id="root">/);
   for (const asset of html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)) {
     const response = await fetch(base + asset[1]); assert.equal(response.status, 200);
     assert.ok((await response.arrayBuffer()).byteLength > 0);
   }
-  console.log('PASS frontend, bundled assets and Build 004A health');
+  console.log('PASS frontend, bundled assets and Build 004B health');
   for (const mode of ['heritage', 'war'] as const) {
     const a = await client(), b = await client();
     a.send({ type: 'create', name: 'Deployment check', rules: { ...preset('don'), mode, players: 2, slots: ['human','human','human','human'] } });

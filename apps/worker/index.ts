@@ -18,20 +18,31 @@ class SocketAdapter extends EventEmitter {
   }
   get readyState() { return this.socket.readyState; }
   send(data: string) { this.socket.send(data); }
+  close(code?: number, reason?: string) { this.socket.close(code, reason); }
 }
 
 export class LudiRoom extends DurableObject<Env> {
   private hub = new EventEmitter();
   private initialized = false;
+  private service?: ReturnType<typeof attachRooms>;
+  private persist = (value: RoomSnapshot) => {
+    const expiry = value.rooms.map(r => r.expiresAt).filter((v): v is number => !!v);
+    this.ctx.waitUntil(Promise.all([
+      this.ctx.storage.put('room', value),
+      expiry.length ? this.ctx.storage.setAlarm(Math.min(...expiry)) : this.ctx.storage.deleteAlarm(),
+    ]));
+  };
+  async alarm() { this.service?.expire(); }
+
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
       const snapshot = await ctx.storage.get<RoomSnapshot>('room');
       const code = await ctx.storage.get<string>('code');
       this.initialized = !!code;
-      attachRooms(this.hub as WebSocketServer, {
+      this.service = attachRooms(this.hub as WebSocketServer, {
         snapshot, roomCode: code,
-        persist: value => { ctx.waitUntil(ctx.storage.put('room', value)); },
+        persist: this.persist,
       });
     });
   }
@@ -43,9 +54,9 @@ export class LudiRoom extends DurableObject<Env> {
         if (this.initialized) return;
         await this.ctx.storage.put('code', code);
         this.hub = new EventEmitter();
-        attachRooms(this.hub as WebSocketServer, {
+        this.service = attachRooms(this.hub as WebSocketServer, {
           roomCode: code,
-          persist: value => { this.ctx.waitUntil(this.ctx.storage.put('room', value)); },
+          persist: this.persist,
         });
         this.initialized = true;
       });
@@ -60,7 +71,7 @@ export class LudiRoom extends DurableObject<Env> {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname === '/api/health') return Response.json({ service: 'LUDI', build: '004A', multiplayer: 'durable-objects' });
+    if (url.pathname === '/api/health') return Response.json({ service: 'LUDI', build: '004B', multiplayer: 'durable-objects' });
     if (url.pathname !== '/ws') return env.ASSETS.fetch(request);
     if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') return new Response('WebSocket required', { status: 426 });
     const origin = request.headers.get('Origin');
@@ -78,10 +89,12 @@ export default {
         if (opening) return;
         const command = JSON.parse(event.data);
         if (!['create', 'join', 'resume'].includes(command?.type)) { client.send(JSON.stringify({ type: 'error', message: 'Join a table first.' })); return; }
+        opening = true;
+        const operationHash = typeof command.operationId === 'string' ? await crypto.subtle.digest('SHA-256', new TextEncoder().encode(command.operationId)) : undefined;
         const code = command.type === 'create'
-          ? crypto.randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
+          ? (operationHash ? Array.from(new Uint8Array(operationHash), b => b.toString(16).padStart(2, '0')).join('') : crypto.randomUUID().replaceAll('-', '')).slice(0, 6).toUpperCase()
           : typeof command.code === 'string' ? command.code.toUpperCase() : '';
-        if (!/^[A-F0-9]{6}$/.test(code)) { client.send(JSON.stringify({ type: 'error', message: 'Invalid room code.' })); return; }
+        if (!/^[A-F0-9]{6}$/.test(code)) { opening = false; client.send(JSON.stringify({ type: 'error', message: 'Invalid room code.' })); return; }
         opening = true;
         const response = await env.ROOMS.getByName(code).fetch(`https://room/${code}`, { headers: { Upgrade: 'websocket' } });
         upstream = response.webSocket ?? undefined;
@@ -101,7 +114,7 @@ export default {
           }
           client.send(e.data);
         });
-        source.addEventListener('close', () => { if (upstream === source && client.readyState === 1) client.close(1012, 'Reconnect'); });
+        source.addEventListener('close', e => { if (upstream === source && client.readyState === 1) client.close(e.code === 4001 ? 4001 : 1012, e.code === 4001 ? 'Session restored elsewhere' : 'Reconnect'); });
         source.addEventListener('error', () => { if (upstream === source && client.readyState === 1) client.close(1011, 'Connection interrupted'); });
         if (client.readyState !== 1) { upstream.close(); return; }
         upstream.send(event.data);
